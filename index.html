@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>류아의 방 · HO1 · HO2</title>
+<meta name="description" content="푸르가토리움의 밤 HO1 · HO2의 작은 3D 방. 캐릭터를 걸어 다니게 하고, 방 안 물건을 눌러 로그 · 그림 · 글 · 방명록을 볼 수 있어요.">
+<!--
+  GM 635: The Kawaii Spatial Diorama
+  HTML/CSS/Vanilla JS template. 3D engine: Three.js r170, bundled locally in js/vendor.
+  Every 3D object is procedurally built from primitives. No model files.
+  Design: https://www.tooplate.com/view/2171-spatial-diorama
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,500;0,700;0,800;0,900;1,900&family=Quicksand:wght@500;600;700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-mode="room" data-pubam-gate>
+
+<div id="stage" aria-hidden="true"></div>
+
+<div class="loader" id="loader" role="status" aria-live="polite">
+  <span class="loader__bun" aria-hidden="true"></span>
+  <span id="loaderText">방 정리하는 중</span>
+</div>
+
+<header class="hud-top">
+  <div class="brand">
+    <span class="brand__mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none"><ellipse cx="11" cy="8" rx="3.2" ry="7" fill="#fff" stroke="#1F1B24" stroke-width="1.6"/><ellipse cx="21" cy="8" rx="3.2" ry="7" fill="#fff" stroke="#1F1B24" stroke-width="1.6"/><circle cx="16" cy="20" r="9.5" fill="#fff" stroke="#1F1B24" stroke-width="1.6"/><circle cx="12.5" cy="19" r="1.4" fill="#1F1B24"/><circle cx="19.5" cy="19" r="1.4" fill="#1F1B24"/><ellipse cx="10" cy="22.5" rx="1.8" ry="1.1" fill="#FFD1DC"/><ellipse cx="22" cy="22.5" rx="1.8" ry="1.1" fill="#FFD1DC"/></svg>
+    </span>
+    <span class="brand__txt"><b>HO1 · HO2</b><span>류아의 방</span></span>
+  </div>
+  <div class="hud-actions">
+    <button class="icon-btn" id="soundBtn" type="button" aria-pressed="true" aria-label="소리">
+      <svg class="ico-on" viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3l5-4v13l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+      <svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3l5-4v13l-5-4H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>
+    </button>
+    <button class="icon-btn" id="resetBtn" type="button" aria-label="방 처음 화면으로">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+    </button>
+  </div>
+</header>
+
+<div id="hotspots">
+  <button class="hotspot is-hidden" type="button" data-open="hero" data-hotspot="hero"><span class="hotspot__key">1</span><span class="hotspot__txt">로그 보기</span><span class="hotspot__near" aria-hidden="true"><span class="near-pc"><kbd>스페이스</kbd>로 열기</span><i>캐릭터를 눌러 열기</i></span></button>
+  <button class="hotspot is-hidden" type="button" data-open="gallery" data-hotspot="gallery"><span class="hotspot__key">2</span><span class="hotspot__txt">그림 보기</span><span class="hotspot__near" aria-hidden="true"><span class="near-pc"><kbd>스페이스</kbd>로 열기</span><i>캐릭터를 눌러 열기</i></span></button>
+  <button class="hotspot is-hidden" type="button" data-open="cabinet" data-hotspot="cabinet"><span class="hotspot__key">3</span><span class="hotspot__txt">글 보기</span><span class="hotspot__near" aria-hidden="true"><span class="near-pc"><kbd>스페이스</kbd>로 열기</span><i>캐릭터를 눌러 열기</i></span></button>
+  <button class="hotspot is-hidden" type="button" data-open="mail" data-hotspot="mail"><span class="hotspot__key">4</span><span class="hotspot__txt">방명록</span><span class="hotspot__near" aria-hidden="true"><span class="near-pc"><kbd>스페이스</kbd>로 열기</span><i>캐릭터를 눌러 열기</i></span></button>
+</div>
+
+<nav class="dock" aria-label="방 안 물건">
+  <button class="dock__btn" type="button" data-open="hero"><span class="dock__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="4"/><path d="M8 3l4 4 4-4" stroke-linecap="round"/></svg></span>로그<kbd>1</kbd></button>
+  <button class="dock__btn" type="button" data-open="gallery"><span class="dock__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 16l5-5 4 4 3-3 6 6" stroke-linecap="round"/></svg></span>그림<kbd>2</kbd></button>
+  <button class="dock__btn" type="button" data-open="cabinet"><span class="dock__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M4 9h16M4 15h16" /><circle cx="12" cy="6" r=".6" fill="#1F1B24"/><circle cx="12" cy="12" r=".6" fill="#1F1B24"/><circle cx="12" cy="18" r=".6" fill="#1F1B24"/></svg></span>글<kbd>3</kbd></button>
+  <button class="dock__btn" type="button" data-open="mail"><span class="dock__ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linejoin="round"><path d="M5 11a5 5 0 0 1 10 0v7H5z"/><path d="M15 6h2a3 3 0 0 1 3 3v9h-5M10 18v3"/><path d="M17 11V4h3" stroke-linecap="round"/></svg></span>방명록<kbd>4</kbd></button>
+</nav>
+
+<p class="hint" id="hint"><b>바닥을 누르면</b> 걸어가요. <b>스페이스</b>는 점프, 물건 옆에서 점프하면 열려요. 끌어서 방을 둘러볼 수 있어요.</p>
+<a class="credit" href="https://www.tooplate.com" target="_blank" rel="nofollow noopener">Design: Tooplate</a>
+
+<button id="backBtn" type="button"><span class="bb-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span>방으로 <kbd>Esc</kbd></button>
+
+<main>
+  <!-- 01 TV: 로그 백업 (js/logs.js) -->
+  <section class="panel glass" id="panel-hero" aria-labelledby="hero-title" inert>
+    <div data-stagger>
+      <p class="eyebrow">TV 01 · 로그 백업</p>
+      <h2 class="panel__head" id="hero-title" tabindex="-1">TV · 로그 백업</h2>
+      <p>시나리오별로 묶여 있어요. 로그를 누르면 PDF가 위아래로 이어서 펼쳐져요.</p>
+      <div class="lg-bar">
+        <button class="lg-sm" type="button" data-lgall="1">모두 펼치기</button>
+        <button class="lg-sm" type="button" data-lgall="0">모두 접기</button>
+        <a class="lg-sm lg-ink lg-pl" href="upload.html#log">로그 올리기 (PDF)</a>
+      </div>
+      <div id="lgView" aria-label="로그 목록"></div>
+      <div class="lg-tv lg-pl">
+        <p><b>TV 화면 그림</b> · 고른 그림이 방 안 TV 화면에 나와요.</p>
+        <button class="lg-sm" type="button" id="tvPick">그림 고르기</button>
+        <button class="lg-sm" type="button" id="tvReset">원래 화면으로</button>
+        <input type="file" id="tvFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        <span id="tvMsg" role="status" style="font-size:13px"></span>
+      </div>
+    </div>
+  </section>
+  <!-- 02 액자: 그림 백업 (서버 그림, js/gallery.js) -->
+  <section class="panel glass" id="panel-gallery" aria-labelledby="gal-title" inert>
+    <div data-stagger>
+      <p class="eyebrow" style="--ey:var(--lav-ink);--ey-dot:var(--lavender)">액자 02 · 그림 백업</p>
+      <h2 class="panel__head" id="gal-title" tabindex="-1">액자 · 그림 백업</h2>
+      <p>그림을 누르면 펼쳐져서 큰 그림과 댓글이 보여요. 펼친 그림은 방 안 액자에도 걸려요.</p>
+      <div class="ag-bar">
+        <div class="ag-tabs" role="tablist" aria-label="누구 그림">
+          <button class="ag-tab" type="button" role="tab" data-ag="ho1" style="--t:#F2E6A0">HO1 PL</button>
+          <button class="ag-tab" type="button" role="tab" data-ag="ho2" style="--t:#DDE3F5">HO2 PL</button>
+          <button class="ag-tab" type="button" role="tab" data-ag="adult" style="--t:#FFD1DC">성인 🔒</button>
+        </div>
+        <span class="ag-tools"><button class="ag-sm" type="button" data-agall="1">모두 펼치기</button><button class="ag-sm" type="button" data-agall="0">모두 접기</button></span>
+      </div>
+      <div id="agView" role="tabpanel" aria-label="그림 목록"></div>
+      <p class="ag-up"><a class="btn btn--ink" href="upload.html#art">그림 올리기</a></p>
+    </div>
+  </section>
+  <!-- 03 CABINET: spring drawers, synced with the 3D drawers -->
+  <section class="panel glass" id="panel-cabinet" aria-labelledby="cab-title" inert>
+    <div data-stagger>
+      <p class="eyebrow">서랍장 03 · 글 백업</p>
+      <h2 class="panel__head" id="cab-title" tabindex="-1">서랍장 · 글 백업</h2>
+      <p>서랍을 열면 안에 든 글이 보여요. 이 서랍을 누르면 방 안 서랍장도 같이 열려요.</p>
+      <ul class="drawers" id="drawers">
+        <li class="drawer">
+          <button class="drawer__btn" type="button" aria-expanded="false" aria-controls="dw-0" id="dwb-0" data-drawer="0"><span class="drawer__knob" aria-hidden="true"></span>내 글<span class="drawer__meta">HO1 PL</span></button>
+          <div class="drawer__body" id="dw-0" role="region" aria-labelledby="dwb-0"><div class="drawer__inner"><div class="drawer__pop">
+            <p>HO1 PL이 쓴 글을 전부 모아 둔 서랍이에요.</p>
+            <ul><li>출발 전</li><li>진행 중</li><li>엔딩 후</li><li>후기</li><li>IF · AU</li></ul>
+            <p style="margin-top:14px"><a class="btn btn--ink" href="writing.html#mine">내 글 서랍 열기</a></p>
+          </div></div></div>
+        </li>
+        <li class="drawer">
+          <button class="drawer__btn" type="button" aria-expanded="false" aria-controls="dw-1" id="dwb-1" data-drawer="1"><span class="drawer__knob" aria-hidden="true"></span>네 글<span class="drawer__meta">HO2 PL</span></button>
+          <div class="drawer__body" id="dw-1" role="region" aria-labelledby="dwb-1"><div class="drawer__inner"><div class="drawer__pop">
+            <p>HO2 PL이 쓴 글을 전부 모아 둔 서랍이에요.</p>
+            <ul><li>출발 전</li><li>진행 중</li><li>엔딩 후</li><li>후기</li><li>IF · AU</li></ul>
+            <p style="margin-top:14px"><a class="btn btn--ink" href="writing.html#yours">네 글 서랍 열기</a></p>
+          </div></div></div>
+        </li>
+        <li class="drawer">
+          <button class="drawer__btn" type="button" aria-expanded="false" aria-controls="dw-2" id="dwb-2" data-drawer="2"><span class="drawer__knob" aria-hidden="true"></span>비밀 서랍<span class="drawer__meta">성인 · 비밀번호</span></button>
+          <div class="drawer__body" id="dw-2" role="region" aria-labelledby="dwb-2"><div class="drawer__inner"><div class="drawer__pop">
+            <p>성인 연령 제한 글이 들어 있어요. 들어가면 성인 비밀번호를 물어봐요.</p>
+            <p style="margin-top:14px"><a class="btn btn--ink" href="writing.html#secret">비밀 서랍 열기</a></p>
+          </div></div></div>
+        </li>
+        <li class="drawer">
+          <button class="drawer__btn" type="button" aria-expanded="false" aria-controls="dw-3" id="dwb-3" data-drawer="3"><span class="drawer__knob" aria-hidden="true"></span>수정기록<span class="drawer__meta">자동 기록</span></button>
+          <div class="drawer__body" id="dw-3" role="region" aria-labelledby="dwb-3"><div class="drawer__inner"><div class="drawer__pop">
+            <p>누가 언제 어떤 글을 올리고 고쳤는지 시간순으로 쌓여요.</p>
+            <p style="margin-top:14px"><a class="btn btn--ink" href="writing.html#log">수정기록 보기</a></p>
+          </div></div></div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 04 FOOTER: the Mochi mailbox -->
+  <footer class="panel glass" id="panel-mail" aria-labelledby="mail-title" inert>
+    <div data-stagger>
+      <p class="eyebrow">우체통 04 · 방명록</p>
+      <h2 class="panel__head" id="mail-title" tabindex="-1">방명록</h2>
+      <p>다녀간 흔적을 남겨 주세요. 남긴 글은 고치거나 지울 수 없어요.</p>
+      <div class="form-wrap" id="formWrap">
+        <form class="form" id="mailForm" novalidate action="#">
+          <div class="field">
+            <label for="f-name">이름</label>
+            <input id="f-name" name="name" type="text" autocomplete="nickname" maxlength="20" required aria-describedby="e-name">
+            <span class="err" id="e-name" aria-live="polite"></span>
+          </div>
+          <div class="field">
+            <label for="f-msg">남길 말</label>
+            <textarea id="f-msg" name="message" maxlength="500" required aria-describedby="e-msg"></textarea>
+            <span class="err" id="e-msg" aria-live="polite"></span>
+          </div>
+          <div class="form-row">
+            <button class="btn btn--ink" type="submit">남기기
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-3-7z"/></svg></button>
+            <span class="form-note">500자까지</span>
+          </div>
+        </form>
+        <div class="sent" id="sent" role="status">
+          <div class="sent__heart" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#1F1B24"><path d="M12 21s-7.5-4.6-9.3-9.2C1.4 8.4 3.6 5 7 5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8C19.5 16.4 12 21 12 21z"/></svg></div>
+          <h3>남겼어요!</h3>
+          <p>둘이 꼭 읽어 볼 거예요.</p>
+          <div class="form-row" style="margin-top:16px"><button class="btn btn--soft" type="button" id="againBtn">하나 더 쓰기</button></div>
+        </div>
+      </div>
+      <ul class="gb-list" id="gbList" aria-label="방명록 글"></ul>
+      <div class="mail-foot">
+        <span>© 2026 푸르가토리움의 밤 HO1 · HO2</span>
+        <span>Design: <a href="https://www.tooplate.com" target="_blank" rel="nofollow noopener">Tooplate</a></span>
+      </div>
+    </div>
+  </footer>
+</main>
+
+
+<!-- 서버(Supabase) 연결: 로그인 · 입장 화면 · 방명록 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/pubam.js"></script>
+<script src="js/guestbook.js"></script>
+<script src="js/gallery.js"></script>
+<script src="js/logs.js"></script>
+<!-- Three.js r170 subset (MIT), bundled locally so the template works offline -->
+<script src="js/vendor/three-diorama.min.js"></script>
+<!-- UI layer: panels, audio, forms. Works on its own if the 3D engine cannot load. -->
+<script src="js/app.js"></script>
+<!-- Diorama engine: Three.js scene, bunny, raycasting, camera flights -->
+<script src="js/diorama.js"></script>
+</body>
+</html>

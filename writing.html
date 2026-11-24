@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>글 백업 · 서랍장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE   다정한 기록장. 두 PL이 서로의 글을 보관하는 서랍.
+IDEA    3D 방의 서랍장을 그대로 펼친 화면: 서랍 = 탭, 칸 = 접히는 묶음, 글 = 접히는 카드
+PICTURE 서랍 손잡이 모양 탭과 둥근 카드, 방과 같은 파스텔 + HO1 노랑 · HO2 파랑
+COLOUR  흰 바탕, 잉크 #1F1B24, 하늘색 벽 #CEDEF2, 분홍·라벤더·민트(서랍 색), 노랑 #F2E6A0, 파랑 #5565AA
+TYPE    제목 Jua, 본문 Gowun Dodum, 숫자·라틴 Nunito
+LAYOUT  가운데 860px 한 단. 폰에서는 탭이 가로로 스크롤, 요약 줄이 두 줄로 접힘
+*/
+:root{
+  color-scheme:light;
+  --bg:#FFFFFF; --ink:#1F1B24; --ink2:#4A4552; --ink3:#6E6878;
+  --sky:#CEDEF2; --sky2:#EEF3FA; --blush:#FFD1DC; --blush2:#FFEAF0; --lav:#E6E6FA; --lav2:#F4F4FD; --mint:#C8E6C9;
+  --ho1:#F2E6A0; --ho1ink:#6B5F1E; --ho2:#5565AA; --ho2soft:#DDE3F5;
+  --line:#D9D5E3; --r:20px;
+}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:90px}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 'Nunito','Gowun Dodum',system-ui,sans-serif;overflow-x:clip;-webkit-font-smoothing:antialiased}
+a{color:var(--ho2)}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:12px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* 상단 */
+.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:860px;margin:0 auto;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px 0 10px;border-radius:999px;border:1.5px solid var(--ink);background:var(--bg);color:var(--ink);text-decoration:none;font-weight:800;font-size:14px;box-shadow:0 3px 0 var(--ink)}
+.back:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.back svg{width:18px;height:18px}
+h1{margin:0;font:400 26px/1.1 'Jua',sans-serif;flex:1 1 auto}
+.search{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--sky2);border:1.5px solid var(--sky);flex:1 1 220px;max-width:320px}
+.search input{border:0;background:transparent;outline:none;font-size:16px;width:100%}
+.search svg{width:18px;height:18px;flex:none;color:var(--ink3)}
+
+.wrap{max-width:860px;margin:0 auto;padding:22px 20px 60px}
+
+/* 서랍 탭 */
+.tabs{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 12px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 18px 6px 8px;border-radius:18px;border:1.5px solid var(--ink);background:var(--d,#fff);cursor:pointer;font-weight:800;font-size:15px;box-shadow:inset 0 -4px 0 color-mix(in oklab,var(--d,#fff) 70%,var(--ink) 14%)}
+.tab .knob{width:26px;height:26px;border-radius:50%;background:#fff;border:1.5px solid var(--ink);display:grid;place-items:center}
+.tab .knob::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.tab small{font:700 12px 'Nunito',sans-serif;color:var(--ink3);margin-left:2px}
+.tab[aria-selected="true"]{transform:translateY(-3px);box-shadow:inset 0 -4px 0 color-mix(in oklab,var(--d,#fff) 70%,var(--ink) 14%),0 4px 0 var(--ink)}
+.tab[aria-selected="true"] .knob{transform:rotate(90deg) scale(1.1)}
+.tab .knob{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 14px}
+.bar p{margin:0;color:var(--ink2);font-size:15px}
+.bar .btns{display:flex;gap:8px;flex-wrap:wrap}
+.chip-btn{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--line);background:#fff;cursor:pointer;font-weight:700;font-size:14px}
+.chip-btn:hover{border-color:var(--ink)}
+.chip-btn.ink{background:var(--ho2);border-color:var(--ho2);color:#fff}
+
+/* 묶음(칸) */
+.group{border:1.5px solid var(--line);border-radius:var(--r);margin:0 0 12px;background:var(--gbg,#fff)}
+.group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 18px;border-radius:var(--r)}
+.group>summary::-webkit-details-marker,.post>summary::-webkit-details-marker{display:none}
+.group>summary h2{margin:0;font:400 19px/1.3 'Jua',sans-serif;flex:1}
+.count{font:800 13px 'Nunito',sans-serif;color:var(--ink3);background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.chev{width:22px;height:22px;flex:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+details[open]>summary .chev{transform:rotate(90deg)}
+.group-body{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+
+/* 글 카드 */
+.post{background:#fff;border:1px solid var(--line);border-radius:16px}
+.post>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 12px;padding:12px 14px;border-radius:16px}
+.post>summary:hover{background:var(--lav2)}
+.who{width:12px;height:12px;border-radius:50%;background:var(--w);border:1.5px solid var(--ink)}
+.ptitle{font-weight:400;font-size:17px;line-height:1.4}
+.ptitle .hd{display:inline-block;font:800 11px 'Nunito',sans-serif;letter-spacing:.04em;padding:1px 8px;margin-right:6px;border-radius:999px;background:var(--mint);vertical-align:2px}
+.ptitle .hd.adult{background:var(--blush)}
+.pmeta{font:700 13px 'Nunito','Gowun Dodum',sans-serif;color:var(--ink3);white-space:nowrap;text-align:right}
+.ptags{grid-column:2/4;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;color:var(--ho2)}
+.pbody{padding:4px 22px 6px;border-top:1px dashed var(--line);margin:0 14px}
+.pbody p{margin:12px 0;max-width:62ch}
+.post[open] .pbody,.group[open] .group-body{animation:drop .35s cubic-bezier(.16,1,.3,1)}
+@keyframes drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+.react{display:flex;flex-wrap:wrap;gap:8px;padding:6px 22px 4px}
+.react button{min-height:40px;padding:0 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;cursor:pointer;font-size:15px}
+.react button[aria-pressed="true"]{background:var(--ho1);border-color:var(--ink)}
+.comments{padding:6px 22px 18px}
+.comments h3{margin:10px 0 6px;font:400 16px 'Jua',sans-serif}
+.clist{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:8px}
+.clist li{background:var(--sky2);border-radius:14px 14px 14px 4px;padding:8px 12px;font-size:15px}
+.clist b{font-weight:800;font-family:'Nunito','Gowun Dodum',sans-serif;margin-right:6px}
+.clist .empty{background:none;color:var(--ink3);padding:0}
+.cform{display:flex;flex-wrap:wrap;gap:8px}
+.cform input{min-height:44px;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;font-size:16px;background:#fff}
+.cform .cname{flex:0 1 120px}
+.cform .ctext{flex:1 1 220px}
+.cform button{min-height:44px;padding:0 18px;border-radius:12px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;font-weight:800;cursor:pointer}
+.pl-tools{display:none;gap:8px;padding:0 22px 16px}
+body.pl .pl-tools{display:flex}
+.pl-only{display:none}
+body.pl .pl-only{display:inline-flex}
+
+/* 비밀 서랍 잠금 */
+.lock{border:1.5px dashed var(--ink3);border-radius:var(--r);padding:28px 22px;text-align:center;background:var(--blush2)}
+.lock h2{margin:0 0 6px;font:400 22px 'Jua',sans-serif}
+.lock p{margin:0 0 16px;color:var(--ink2)}
+.lock form{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.lock input{min-height:48px;border:1.5px solid var(--ink);border-radius:12px;padding:0 14px;font-size:16px;width:min(240px,100%)}
+.lock button{min-height:48px;padding:0 22px;border-radius:12px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;font-weight:800;cursor:pointer}
+.lock .note{margin-top:12px;font-size:13px;color:var(--ink3)}
+
+/* 수정기록 */
+.log{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--sky)}
+.log li{position:relative;padding:4px 0 14px 14px}
+.log li::before{content:"";position:absolute;left:-26px;top:12px;width:14px;height:14px;border-radius:50%;background:var(--w);border:1.5px solid var(--ink)}
+.log time{display:block;font:700 13px 'Nunito',sans-serif;color:var(--ink3)}
+.log .act{font-weight:400}
+.log .act b{font-family:'Nunito','Gowun Dodum',sans-serif;font-weight:800}
+.log a{cursor:pointer}
+
+.empty-state{text-align:center;color:var(--ink3);padding:40px 0}
+.foot{max-width:860px;margin:0 auto;padding:0 20px 40px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font-size:13px;color:var(--ink3)}
+.mode{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px}
+.mode button{min-height:36px;padding:0 14px;border:0;border-radius:999px;background:none;cursor:pointer;font-weight:800;font-size:13px}
+.mode button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,24px);opacity:0;visibility:hidden;background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s .4s;z-index:20}
+.toast.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .2s}
+
+@media (max-width:600px){
+  body{font-size:16px}
+  h1{font-size:22px;flex-basis:calc(100% - 120px)}
+  .search{max-width:none;flex-basis:100%}
+  .post>summary{grid-template-columns:auto 1fr}
+  .pmeta{grid-column:2;text-align:left}
+  .ptags{grid-column:2}
+  .pbody,.react,.comments,.pl-tools{padding-left:12px;padding-right:12px}
+  .pbody{margin:0 8px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* 서버 연결 후 추가 */
+.foot-btns{display:flex;gap:8px;flex-wrap:wrap}
+.clist li{position:relative}
+.cdel{display:none;position:absolute;right:6px;top:4px;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer;line-height:1}
+body.pl .cdel{display:block}
+.ed{width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border:1.5px solid var(--ink);border-radius:24px;padding:22px;box-shadow:0 6px 0 var(--ink)}
+.ed::backdrop{background:rgba(206,222,242,.7);backdrop-filter:blur(6px)}
+.ed h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
+.ed form{display:flex;flex-direction:column;gap:12px}
+.ed label{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:14px}
+.ed label small{font-weight:700;color:var(--ink3)}
+.ed input,.ed select,.ed textarea{min-height:44px;border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;font-size:16px;background:#fff;font-weight:400;font-family:'Gowun Dodum','Nunito',sans-serif}
+.ed textarea{line-height:1.7;resize:vertical}
+.ed input:focus,.ed select:focus,.ed textarea:focus{outline:none;border-color:var(--ho2)}
+.ed-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.ed-check{flex-direction:row!important;align-items:center;gap:8px!important}
+.ed-check input{min-height:auto;width:20px;height:20px}
+.ed-err{margin:0;min-height:20px;color:#B3261E;font-size:14px}
+.ed-btns{display:flex;justify-content:flex-end;gap:8px}
+@media (max-width:600px){.ed{padding:16px}}
+/* 폴더 */
+[hidden]{display:none!important}
+body.pl .pl-only{align-items:center}
+.ficon{font-size:18px;line-height:1}
+.ftools{display:flex;flex-wrap:wrap;gap:6px;padding:2px 2px 6px}
+.ftools .chip-btn{min-height:38px;padding:0 12px;font-size:13px}
+.fempty{margin:4px 6px 8px;color:var(--ink3);font-size:14px}
+.pl-tools{flex-wrap:wrap;align-items:center}
+.pl-tools .chip-btn{min-height:40px}
+.move{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink2)}
+.move select{min-height:40px;border:1.5px solid var(--line);border-radius:12px;padding:0 8px;background:#fff;font-size:14px;max-width:180px}
+.pt-in{margin:14px 0 4px;font:400 19px/1.4 'Jua',sans-serif}
+</style>
+</head>
+<body data-pubam-who="off">
+
+<header class="top">
+  <div class="top-in">
+    <a class="back" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>방으로</a>
+    <h1>서랍장 · 글 백업</h1>
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="sr">글 검색</span><input id="q" type="search" placeholder="제목, 태그, 내용 검색" autocomplete="off"></label>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="tabs" role="tablist" aria-label="서랍">
+    <button class="tab" role="tab" id="t-mine" data-tab="mine" style="--d:var(--blush)"><span class="knob" aria-hidden="true"></span>내 글<small>HO1 PL</small></button>
+    <button class="tab" role="tab" id="t-yours" data-tab="yours" style="--d:var(--lav)"><span class="knob" aria-hidden="true"></span>네 글<small>HO2 PL</small></button>
+    <button class="tab" role="tab" id="t-secret" data-tab="secret" style="--d:#fff"><span class="knob" aria-hidden="true"></span>비밀 서랍<small>성인</small></button>
+    <button class="tab" role="tab" id="t-log" data-tab="log" style="--d:var(--blush)"><span class="knob" aria-hidden="true"></span>수정기록</button>
+  </nav>
+
+  <div class="bar">
+    <p id="summary" aria-live="polite"></p>
+    <div class="btns">
+      <button class="chip-btn" type="button" id="openAll">모두 펼치기</button>
+      <button class="chip-btn" type="button" id="closeAll">모두 접기</button>
+      <button class="chip-btn pl-only" type="button" id="newFolder">+ 새 폴더</button>
+      <button class="chip-btn ink pl-only" type="button" id="newPost">글 올리기</button>
+    </div>
+  </div>
+
+  <section id="view" role="tabpanel" aria-labelledby="t-mine"></section>
+</main>
+
+<footer class="foot">
+  <span id="whoami">불러오는 중…</span>
+  <span class="foot-btns">
+    <button class="chip-btn pl-only" type="button" id="setPw">성인 비번 바꾸기</button>
+    <button class="chip-btn" type="button" id="authBtn">PL 로그인</button>
+  </span>
+</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/pubam.js"></script>
+<script>
+{
+const P = window.PUBAM;
+const sb = P.sb;
+const PEOPLE = { ho1: { name: 'HO1 PL', color: 'var(--ho1)' }, ho2: { name: 'HO2 PL', color: 'var(--ho2soft)' } };
+const REACTS = ['❤️', '😭', '👍', '🤣'];
+const TABLE_NAME = { posts: '글', artworks: '그림', logs: '로그', quotes: '명대사', characters: '인물 설정', layout: '가구 배치' };
+
+let POSTS = [], ADULT = [], LOG = [], FOLDERS = [];
+const closedState = new Set();   /* 사용자가 접은 폴더 (첫 폴더는 기본으로 펼침) */
+let comments = {};          /* 글 id → [{id,name,body}] */
+let counts = {};            /* 글 id → {emoji: n} */
+let adultPw = null;         /* 비밀 서랍 비번: 이 페이지를 닫으면 잊음 */
+const mine = (() => { try { return JSON.parse(localStorage.getItem('pubam-reacted') || '{}'); } catch (e) { return {}; } })();
+const saveMine = () => { try { localStorage.setItem('pubam-reacted', JSON.stringify(mine)); } catch (e) {} };
+
+/* ---------- 도우미 ---------- */
+const esc = P.esc;
+const chev = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+const view = document.getElementById('view');
+const q = document.getElementById('q');
+const summary = document.getElementById('summary');
+let tab = 'mine', loading = true, loadErr = '';
+const openState = new Set(['g-mine-0', 'g-yours-0', 'g-secret-0']);
+const pad = n => String(n).padStart(2, '0');
+const day = t => { const d = new Date(t); return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`; };
+const stamp = t => { const d = new Date(t); return `${day(t)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const paras = s => String(s || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+const allPosts = () => POSTS.concat(ADULT.filter(a => !POSTS.some(p => p.id === a.id)));
+
+function match(p, term){
+  if (!term) return true;
+  const hay = (p.title + ' ' + (p.fold_text || '') + ' ' + (p.tags || []).join(' ') + ' ' + p.body + ' ' + p.kind).toLowerCase();
+  return hay.includes(term);
+}
+function postHTML(p){
+  const c = comments[p.id] || [];
+  const r = counts[p.id] || {};
+  const edited = new Date(p.updated_at) - new Date(p.created_at) > 60000;
+  return `<details class="post" id="p-${p.id}" data-id="${p.id}">
+    <summary>
+      <span class="who" style="--w:${PEOPLE[p.author].color}" title="${esc(PEOPLE[p.author].name)}"></span>
+      <span class="ptitle">${p.head ? `<span class="hd">${esc(p.head)}</span>` : ''}${p.is_adult ? '<span class="hd adult">성인</span>' : ''}${esc(p.fold_text || p.title)}</span>
+      <span class="pmeta">${p.written_on ? p.written_on.replace(/-/g, '.') : day(p.created_at)}${edited ? ' (고침)' : ''} · ${esc(p.kind)} · 댓글 ${c.length}</span>
+      <span class="ptags">${(p.tags || []).map(t => `<span>#${esc(t)}</span>`).join('')}</span>
+    </summary>
+    <div class="pbody">${p.fold_text ? `<h3 class="pt-in">${esc(p.title)}</h3>` : ''}${paras(p.body).map(t => `<p>${esc(t)}</p>`).join('') || '<p></p>'}</div>
+    <div class="react" role="group" aria-label="반응">${REACTS.map(e => {
+      const on = !!mine['post:' + p.id + ':' + e];
+      return `<button type="button" data-react="${e}" aria-pressed="${on}">${e} <span>${r[e] || 0}</span></button>`;
+    }).join('')}</div>
+    <section class="comments" aria-label="댓글">
+      <h3>댓글 ${c.length}</h3>
+      <ul class="clist">${c.length ? c.map(x => `<li><b>${esc(x.name)}</b>${esc(x.body)}<button class="cdel" type="button" data-cdel="${x.id}" aria-label="댓글 지우기">×</button></li>`).join('') : '<li class="empty">첫 댓글을 남겨 보세요.</li>'}</ul>
+      <form class="cform" data-id="${p.id}">
+        <label class="sr" for="cn-${p.id}">이름</label><input class="cname" id="cn-${p.id}" name="name" placeholder="이름" maxlength="20" required>
+        <label class="sr" for="ct-${p.id}">댓글</label><input class="ctext" id="ct-${p.id}" name="text" placeholder="한마디 남기기" maxlength="300" required>
+        <button type="submit">남기기</button>
+      </form>
+    </section>
+    <div class="pl-tools">
+      <button class="chip-btn" type="button" data-edit="${p.id}">수정</button><button class="chip-btn" type="button" data-del="${p.id}">삭제</button>
+      <label class="move">폴더 옮기기 <select data-move="${p.id}">${moveOptions(p)}</select></label>
+      ${manualIn(p) ? `<button class="chip-btn" type="button" data-pup="${p.id}" aria-label="위로">↑</button><button class="chip-btn" type="button" data-pdown="${p.id}" aria-label="아래로">↓</button>` : ''}
+    </div>
+  </details>`;
+}
+
+/* ---------- 폴더: 서랍(내 글 ho1 / 네 글 ho2 / 비밀 secret) 안에서 글을 묶음 ----------
+   folders 표(kind='post'). 그림도 kind='art'로 같은 구조를 쓸 수 있게 만들어 둠 */
+const drawerOf = p => p.is_adult ? 'secret' : p.author;
+const foldersOf = d => FOLDERS.filter(f => f.kind === 'post' && f.drawer === d).sort((a, b) => a.sort - b.sort || a.id - b.id);
+const folderOf = p => FOLDERS.find(f => f.id === p.folder_id && f.drawer === drawerOf(p));
+const manualIn = p => { const f = folderOf(p); return !!(f && f.sort_mode === 'manual'); };
+function moveOptions(p){
+  const cur = folderOf(p);
+  return `<option value="">폴더 없음</option>` + foldersOf(drawerOf(p)).map(f => `<option value="${f.id}" ${cur && cur.id === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('');
+}
+const byDate = (a, b) => ((a.written_on || a.created_at.slice(0, 10)) < (b.written_on || b.created_at.slice(0, 10)) ? -1 : (a.written_on || a.created_at.slice(0, 10)) > (b.written_on || b.created_at.slice(0, 10)) ? 1 : a.created_at < b.created_at ? -1 : 1);
+const byManual = (a, b) => (a.sort_order || 0) - (b.sort_order || 0) || byDate(a, b);
+function folderPosts(f, list){ return list.filter(p => p.folder_id === f.id).sort(f.sort_mode === 'manual' ? byManual : byDate); }
+function foldersHTML(list, drawer){
+  const term = q.value.trim(), pl = P.isPL();
+  const fs = foldersOf(drawer);
+  const loose = list.filter(p => !folderOf(p)).sort(byDate);
+  const blocks = [];
+  if (loose.length) blocks.push({ id: `f-${drawer}-none`, name: '폴더에 안 넣은 글', items: loose, f: null });
+  fs.forEach(f => { const items = folderPosts(f, list); if (items.length || (pl && !term)) blocks.push({ id: `f-${drawer}-${f.id}`, name: f.name, items, f }); });
+  return blocks.map((b, i) => {
+    const open = openState.has(b.id) || (!closedState.has(b.id) && i === 0) || !!term;
+    const tools = b.f && pl ? `<div class="ftools">
+        <button class="chip-btn" type="button" data-frename="${b.f.id}">이름 바꾸기</button>
+        <button class="chip-btn" type="button" data-fup="${b.f.id}" aria-label="폴더 위로">↑</button><button class="chip-btn" type="button" data-fdown="${b.f.id}" aria-label="폴더 아래로">↓</button>
+        <button class="chip-btn" type="button" data-fsort="${b.f.id}">정렬: ${b.f.sort_mode === 'manual' ? '직접 순서' : '날짜순'}</button>
+        ${b.items.length ? '' : `<button class="chip-btn" type="button" data-fdel="${b.f.id}">빈 폴더 지우기</button>`}
+      </div>` : '';
+    return `<details class="group" id="${b.id}" ${open ? 'open' : ''} style="--gbg:${i % 2 ? 'var(--sky2)' : 'var(--lav2)'}">
+      <summary>${chev}<span class="ficon" aria-hidden="true">${b.f ? '📁' : '📄'}</span><h2>${esc(b.name)}</h2><span class="count">${b.items.length}편</span></summary>
+      <div class="group-body">${tools}${b.items.map(postHTML).join('') || '<p class="fempty">빈 폴더예요. 글을 쓸 때 이 폴더를 고르거나, 글의 "폴더 옮기기"로 넣어요.</p>'}</div>
+    </details>`;
+  }).join('');
+}
+function render(){
+  const term = q.value.trim().toLowerCase();
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === tab ? 'true' : 'false'));
+  view.setAttribute('aria-labelledby', 't-' + tab);
+  document.getElementById('openAll').hidden = document.getElementById('closeAll').hidden = tab === 'log';
+  document.getElementById('newFolder').hidden = tab === 'log';
+  if (loading) { summary.textContent = ''; view.innerHTML = '<p class="empty-state">서랍을 여는 중…</p>'; return; }
+  if (loadErr) { summary.textContent = ''; view.innerHTML = `<p class="empty-state">${esc(loadErr)}</p>`; return; }
+  let html = '';
+  if (tab === 'mine' || tab === 'yours') {
+    const who = tab === 'mine' ? 'ho1' : 'ho2';
+    const list = POSTS.filter(p => p.author === who && !p.is_adult && match(p, term));
+    html = foldersHTML(list, who);
+    summary.textContent = `${PEOPLE[who].name}의 글 ${list.length}편` + (term ? ` · "${q.value.trim()}" 검색 결과` : '');
+  } else if (tab === 'secret') {
+    if (!P.isPL() && adultPw === null) {
+      summary.textContent = '성인 비밀번호로 잠긴 서랍이에요.';
+      html = `<div class="lock"><h2>비밀 서랍</h2><p>성인 연령 제한 글이 들어 있어요. 비밀번호를 입력하면 열려요.</p>
+        <form id="lockForm"><label class="sr" for="pw">성인 비밀번호</label><input id="pw" type="password" placeholder="비밀번호" autocomplete="off" required><button type="submit">열기</button></form>
+        <p class="note" id="lockErr" role="alert"></p></div>`;
+    } else {
+      const list = ADULT.filter(p => match(p, term));
+      summary.textContent = `비밀 서랍 ${list.length}편`;
+      html = foldersHTML(list, 'secret');
+    }
+  } else {
+    const rows = LOG.filter(l => !term || (l.title || '').toLowerCase().includes(term));
+    summary.textContent = `최근 기록 ${rows.length}개`;
+    const ADULT_WHAT = { posts: '성인 글 1편', artworks: '성인 그림 1장', logs: '성인 로그 1개' };
+    html = rows.length ? `<ul class="log">${rows.map(l => {
+      const by = PEOPLE[l.actor] || { name: '누군가', color: '#fff' };
+      if (l.is_adult) return `<li style="--w:${by.color}"><time>${stamp(l.at)}</time><span class="act"><b>${esc(by.name)}</b> 님이 ${ADULT_WHAT[l.table_name] || '성인 콘텐츠'} ${esc(l.action)}</span></li>`;   /* 성인 글·그림은 제목을 가림 */
+      const p = l.table_name === 'posts' && l.action !== '삭제' ? allPosts().find(x => String(x.id) === l.row_id) : null;
+      const what = p ? `<a data-goto="${p.id}">${esc(l.title)}</a>` : `<span>${esc(l.title || '')}</span>`;
+      const kind = l.table_name === 'posts' ? '' : `${esc(TABLE_NAME[l.table_name] || l.table_name)} `;
+      return `<li style="--w:${by.color}"><time>${stamp(l.at)}</time><span class="act"><b>${esc(by.name)}</b> 님이 ${kind}${what} 을(를) ${esc(l.action)}</span></li>`;
+    }).join('')}</ul>` : '';
+  }
+  view.innerHTML = html || `<p class="empty-state">${term ? '검색 결과가 없어요.' : '아직 글이 없어요.'}</p>`;
+}
+/* 화면을 다시 그려도 열려 있던 글은 열린 채로 */
+function rerender(){
+  const open = [...view.querySelectorAll('.post[open]')].map(d => d.id);
+  render();
+  open.forEach(id => { const d = document.getElementById(id); if (d) d.open = true; });
+}
+
+/* ---------- 서버에서 불러오기 ---------- */
+async function loadAll(){
+  if (!sb) { loading = false; loadErr = '서버에 연결하지 못했어요.'; render(); return; }
+  const [ps, cs, rs, lg, fs] = await Promise.all([
+    sb.from('posts').select('*').order('written_on', { nullsFirst: false }).order('created_at'),
+    sb.from('comments').select('id,target_id,name,body,created_at').eq('target_type', 'post').order('created_at'),
+    sb.rpc('reaction_counts', { p_type: 'post' }),
+    sb.from('audit_log').select('*').order('at', { ascending: false }).limit(200),
+    sb.from('folders').select('*').eq('kind', 'post').order('sort').order('id')
+  ]);
+  const err = ps.error || cs.error || rs.error || lg.error || fs.error;
+  if (!err) FOLDERS = fs.data.concat(FOLDERS.filter(f => f.drawer === 'secret' && !P.isPL() && !fs.data.some(x => x.id === f.id)));
+  loading = false;
+  if (err) { loadErr = P.msg(err); render(); return; }
+  loadErr = '';
+  POSTS = ps.data;
+  if (P.isPL()) ADULT = POSTS.filter(p => p.is_adult);
+  comments = {}; cs.data.forEach(c => (comments[c.target_id] = comments[c.target_id] || []).push(c));
+  counts = {}; rs.data.forEach(r => { (counts[r.target_id] = counts[r.target_id] || {})[r.emoji] = Number(r.n); });
+  LOG = lg.data;
+  if (!P.isPL() && adultPw !== null) await loadAdult(adultPw);
+  rerender();
+}
+async function loadAdult(pw){
+  const [ps, cs, fs] = await Promise.all([sb.rpc('adult_posts', { pw }), sb.rpc('adult_comments', { pw }), sb.rpc('adult_folders', { pw })]);
+  if (ps.error) throw ps.error;
+  ADULT = ps.data;
+  (fs.data || []).forEach(f => { if (!FOLDERS.some(x => x.id === f.id)) FOLDERS.push(f); });   /* 비밀 서랍 폴더 이름도 비번 확인 후에만 */
+  (cs.data || []).forEach(c => { const l = comments[c.target_id] = comments[c.target_id] || []; if (!l.some(x => x.id === c.id)) l.push(c); });
+}
+
+/* ---------- 이벤트 ---------- */
+function setTab(t){ tab = t; if (location.hash !== '#' + t) history.replaceState(null, '', '#' + t); render(); }
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+document.querySelector('.tabs').addEventListener('keydown', e => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const tabs = [...document.querySelectorAll('.tab')], i = tabs.findIndex(t => t.dataset.tab === tab);
+  const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  setTab(next.dataset.tab); next.focus();
+});
+q.addEventListener('input', render);
+view.addEventListener('toggle', e => {
+  const d = e.target;
+  if (d.classList && d.classList.contains('group')) { if (d.open) { openState.add(d.id); closedState.delete(d.id); } else { openState.delete(d.id); closedState.add(d.id); } }
+}, true);
+document.getElementById('openAll').addEventListener('click', () => view.querySelectorAll('details').forEach(d => { d.open = true; if (d.classList.contains('group')) openState.add(d.id); }));
+document.getElementById('closeAll').addEventListener('click', () => view.querySelectorAll('details').forEach(d => { d.open = false; if (d.classList.contains('group')) openState.delete(d.id); }));
+
+view.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.id === 'lockForm') {
+    const pw = f.querySelector('#pw').value, btn = f.querySelector('button');
+    btn.disabled = true;
+    try { await loadAdult(pw); adultPw = pw; render(); }
+    catch (err) { document.getElementById('lockErr').textContent = P.msg(err); btn.disabled = false; }
+    return;
+  }
+  if (!f.classList.contains('cform')) return;
+  const id = +f.dataset.id, name = f.name.value.trim(), text = f.text.value.trim();
+  if (!name || !text) return;
+  const btn = f.querySelector('button'); btn.disabled = true;
+  /* 게스트는 성인 글 댓글을 바로 다시 읽을 수 없어서, 저장만 하고 화면에는 직접 붙임 */
+  const r = await sb.from('comments').insert({ target_type: 'post', target_id: id, name, body: text });
+  btn.disabled = false;
+  if (r.error) { toast(P.msg(r.error)); return; }
+  if (P.isPL()) { await loadAll(); const el = document.getElementById('p-' + id); if (el) el.open = true; return; }
+  (comments[id] = comments[id] || []).push({ id: 0, target_id: id, name, body: text });
+  const post = f.closest('.post'); const wasOpen = post.open;
+  post.outerHTML = postHTML(allPosts().find(p => p.id === id));
+  const fresh = document.getElementById('p-' + id); fresh.open = wasOpen;
+  fresh.querySelector('.cname').value = name;
+  fresh.querySelector('.ctext').focus();
+});
+
+view.addEventListener('click', async e => {
+  const r = e.target.closest('[data-react]');
+  if (r) {
+    const id = +r.closest('.post').dataset.id, k = r.dataset.react, key = 'post:' + id + ':' + k;
+    r.disabled = true;
+    const res = await sb.rpc('toggle_reaction', { p_type: 'post', p_id: id, p_emoji: k, p_client: P.clientId });
+    r.disabled = false;
+    if (res.error) { toast(P.msg(res.error)); return; }
+    const on = res.data === true;
+    if (on) mine[key] = 1; else delete mine[key]; saveMine();
+    const c = counts[id] = counts[id] || {}; c[k] = Math.max(0, (c[k] || 0) + (on ? 1 : -1));
+    r.setAttribute('aria-pressed', on); r.querySelector('span').textContent = c[k];
+    return;
+  }
+  const g = e.target.closest('[data-goto]');
+  if (g) {
+    const p = allPosts().find(x => x.id === +g.dataset.goto); if (!p) return;
+    tab = p.is_adult ? 'secret' : (p.author === 'ho1' ? 'mine' : 'yours');
+    setTab(tab);
+    const el = document.getElementById('p-' + p.id);
+    if (el) { const g = el.closest('.group'); if (g) { g.open = true; openState.add(g.id); } el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    return;
+  }
+  const ed = e.target.closest('[data-edit]');
+  if (ed) { location.href = 'upload.html#edit-post=' + ed.dataset.edit; return; }
+  /* 폴더 관리 (PL) */
+  const fb = e.target.closest('[data-frename],[data-fup],[data-fdown],[data-fsort],[data-fdel]');
+  if (fb) { await folderAction(fb); return; }
+  const pu = e.target.closest('[data-pup],[data-pdown]');
+  if (pu) { await movePostInFolder(+(pu.dataset.pup || pu.dataset.pdown), pu.dataset.pup ? -1 : 1); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    const p = allPosts().find(x => x.id === +del.dataset.del);
+    if (!confirm(`「${p.title}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    const res = await sb.from('posts').delete().eq('id', p.id);
+    if (res.error) { toast(P.msg(res.error)); return; }
+    toast('지웠어요'); loadAll();
+    return;
+  }
+  const cd = e.target.closest('[data-cdel]');
+  if (cd) {
+    if (!confirm('이 댓글을 지울까요?')) return;
+    const res = await sb.from('comments').delete().eq('id', +cd.dataset.cdel);
+    if (res.error) { toast(P.msg(res.error)); return; }
+    loadAll();
+  }
+});
+
+/* ---------- 폴더 만들기·이름 바꾸기·순서·정렬·지우기, 글 옮기기 (PL) ---------- */
+const tabDrawer = () => tab === 'mine' ? 'ho1' : tab === 'yours' ? 'ho2' : tab === 'secret' ? 'secret' : null;
+async function done(res, msg){ if (res && res.error) { toast(P.msg(res.error)); return false; } if (msg) toast(msg); await loadAll(); return true; }
+document.getElementById('newFolder').addEventListener('click', async () => {
+  const d = tabDrawer(); if (!d) return;
+  const name = (prompt(`새 폴더 이름 (${d === 'secret' ? '비밀 서랍' : d === 'ho1' ? '내 글' : '네 글'})`) || '').trim();
+  if (!name) return;
+  const sort = Math.max(0, ...foldersOf(d).map(f => f.sort)) + 1;
+  await done(await sb.from('folders').insert({ kind: 'post', drawer: d, name: name.slice(0, 40), sort }), `폴더 「${name}」을 만들었어요`);
+});
+async function folderAction(b){
+  const id = +(b.dataset.frename || b.dataset.fup || b.dataset.fdown || b.dataset.fsort || b.dataset.fdel);
+  const f = FOLDERS.find(x => x.id === id); if (!f) return;
+  if (b.dataset.frename) {
+    const name = (prompt('폴더 새 이름', f.name) || '').trim();
+    if (name && name !== f.name) await done(await sb.from('folders').update({ name: name.slice(0, 40) }).eq('id', id), '이름을 바꿨어요');
+  } else if (b.dataset.fsort) {
+    const mode = f.sort_mode === 'manual' ? 'date' : 'manual';
+    if (mode === 'manual') {   /* 직접 순서로 바꿀 때: 지금 날짜순을 처음 순서로 */
+      const items = POSTS.concat(ADULT).filter((p, i, a) => p.folder_id === id && a.findIndex(x => x.id === p.id) === i).sort(byDate);
+      for (let i = 0; i < items.length; i++) await sb.from('posts').update({ sort_order: i + 1 }).eq('id', items[i].id);
+    }
+    await done(await sb.from('folders').update({ sort_mode: mode }).eq('id', id), mode === 'manual' ? '직접 순서: 글의 ↑↓로 옮겨요' : '날짜순으로 정렬해요');
+  } else if (b.dataset.fdel) {
+    if (!confirm(`빈 폴더 「${f.name}」을 지울까요?`)) return;
+    await done(await sb.from('folders').delete().eq('id', id), '폴더를 지웠어요');
+  } else {
+    const list = foldersOf(f.drawer), i = list.findIndex(x => x.id === id), j = i + (b.dataset.fup ? -1 : 1);
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    for (let k = 0; k < list.length; k++) if (list[k].sort !== k + 1) await sb.from('folders').update({ sort: k + 1 }).eq('id', list[k].id);
+    await done(null);
+  }
+}
+async function movePostInFolder(pid, dir){
+  const p = allPosts().find(x => x.id === pid), f = p && folderOf(p); if (!f) return;
+  const list = folderPosts(f, allPosts()), i = list.findIndex(x => x.id === pid), j = i + dir;
+  if (j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  for (let k = 0; k < list.length; k++) if ((list[k].sort_order || 0) !== k + 1) await sb.from('posts').update({ sort_order: k + 1 }).eq('id', list[k].id);
+  await done(null);
+  const el = document.getElementById('p-' + pid); if (el) el.scrollIntoView({ block: 'nearest' });
+}
+view.addEventListener('change', async e => {
+  const s = e.target.closest('[data-move]'); if (!s) return;
+  const pid = +s.dataset.move, fid = s.value ? +s.value : null;
+  const sort = Math.max(0, ...allPosts().filter(p => p.folder_id === fid).map(p => p.sort_order || 0)) + 1;
+  const name = fid ? (FOLDERS.find(f => f.id === fid) || {}).name : '폴더 밖';
+  if (fid) { openState.add(`f-${tabDrawer()}-${fid}`); closedState.delete(`f-${tabDrawer()}-${fid}`); }
+  await done(await sb.from('posts').update({ folder_id: fid, sort_order: sort }).eq('id', pid), `「${name}」(으)로 옮겼어요`);
+});
+
+/* ---------- 글 쓰기 / 고치기: 올리기 화면(upload.html)에서 ---------- */
+document.getElementById('newPost').addEventListener('click', () => { location.href = 'upload.html#post'; });
+
+/* ---------- 로그인 상태 ---------- */
+document.body.classList.toggle('pl', false);
+const authBtn = document.getElementById('authBtn');
+authBtn.addEventListener('click', () => { if (P.isPL()) P.logout(); else P.openLogin(); });
+document.getElementById('setPw').addEventListener('click', async () => {
+  const pw = prompt('새 성인 비밀번호 (4자 이상)\n게스트가 비밀 서랍을 열 때 쓰는 비번이에요.');
+  if (pw == null) return;
+  const res = await sb.rpc('set_adult_password', { pw });
+  toast(res.error ? (/too_short/.test(res.error.message) ? '4자 이상으로 해 주세요' : P.msg(res.error)) : '성인 비번을 바꿨어요');
+});
+let lastPL = null;
+P.onAuth(() => {
+  const pl = P.isPL();
+  document.body.classList.toggle('pl', pl);
+  document.getElementById('whoami').textContent = pl ? `${P.member.display_name}(으)로 로그인했어요` : '게스트로 보는 중이에요. 댓글·반응·방명록을 남길 수 있어요.';
+  authBtn.textContent = pl ? '로그아웃' : 'PL 로그인';
+  if (lastPL !== pl) { lastPL = pl; if (!pl) ADULT = adultPw === null ? [] : ADULT; loadAll(); }
+});
+
+let tt = 0;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2400); }
+
+/* 주소 끝 #mine #yours #secret #log 로 서랍을 바로 열 수 있음 */
+function fromHash(){ const h = location.hash.slice(1); tab = ['mine', 'yours', 'secret', 'log'].includes(h) ? h : 'mine'; render(); }
+window.addEventListener('hashchange', fromHash);
+fromHash();
+if (P.offline) { loading = false; loadErr = '서버에 연결하지 못했어요.'; render(); }
+}
+</script>
+</body>
+</html>

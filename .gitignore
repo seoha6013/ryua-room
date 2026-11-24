@@ -1,0 +1,16 @@
+# 인수인계·요청 문서는 올리지 않음
+CLAUDE.md
+**/CLAUDE.md
+REQUEST*
+**/REQUEST*
+
+# 사이트에 쓰지 않는 파일
+writing.sian-backup.html
+timer.html
+
+# 백업·임시
+_backups/
+_screenshots/
+*.zip
+.DS_Store
+Thumbs.db

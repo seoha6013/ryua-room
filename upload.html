@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>올리기 · 류아의 방</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/* 글·그림·로그 올리기 (PL 전용). 서랍장 화면(writing.html)과 같은 색·글꼴 */
+:root{
+  color-scheme:light;
+  --bg:#FFFFFF; --ink:#1F1B24; --ink2:#4A4552; --ink3:#6E6878;
+  --sky:#CEDEF2; --sky2:#EEF3FA; --blush:#FFD1DC; --blush2:#FFEAF0; --lav:#E6E6FA; --lav2:#F4F4FD; --mint:#C8E6C9;
+  --ho1:#F2E6A0; --ho2:#5565AA; --ho2soft:#DDE3F5;
+  --line:#D9D5E3; --r:20px; --err:#B3261E; --adult:#D2456E;
+}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 'Nunito','Gowun Dodum',system-ui,sans-serif;overflow-x:clip;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:12px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:860px;margin:0 auto;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px 0 10px;border-radius:999px;border:1.5px solid var(--ink);background:var(--bg);color:var(--ink);text-decoration:none;font-weight:800;font-size:14px;box-shadow:0 3px 0 var(--ink)}
+.back:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.back svg{width:18px;height:18px}
+h1{margin:0;font:400 26px/1.1 'Jua',sans-serif;flex:1 1 auto}
+.me{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
+.me i{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);background:var(--ho1)}
+.me i.ho2{background:var(--ho2)}
+.wrap{max-width:860px;margin:0 auto;padding:22px 20px 80px}
+
+.tabs{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 14px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;min-height:50px;padding:0 18px;border-radius:18px;border:1.5px solid var(--ink);background:var(--d,#fff);cursor:pointer;font-weight:800;font-size:15px}
+.tab[aria-selected="true"]{transform:translateY(-3px);box-shadow:0 4px 0 var(--ink)}
+
+.card{border:1.5px solid var(--line);border-radius:var(--r);padding:20px;background:#fff}
+.card+.card{margin-top:14px}
+.card h2{margin:0 0 4px;font:400 21px 'Jua',sans-serif}
+.card>p.sub{margin:0 0 16px;color:var(--ink2);font-size:15px}
+form.f{display:flex;flex-direction:column;gap:14px}
+.f label,.lbl{display:flex;flex-direction:column;gap:4px;font-weight:800;font-size:14px}
+.f label small,.lbl small{font-weight:700;color:var(--ink3)}
+.f input:not([type=checkbox]),.f select,.f textarea,.in{min-height:46px;border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;font-size:16px;background:#fff;font-weight:400;font-family:'Gowun Dodum','Nunito',sans-serif;width:100%}
+.f textarea{line-height:1.8;resize:vertical;min-height:300px}
+.f input:focus,.f select:focus,.f textarea:focus,.in:focus{outline:none;border-color:var(--ho2)}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.check{flex-direction:row!important;align-items:center;gap:10px!important;min-height:44px;cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--ho2)}
+/* 성인 체크: 눈에 잘 띄게 */
+.adult{flex-direction:row!important;align-items:center;gap:12px!important;min-height:56px;padding:10px 14px;border:2px dashed var(--adult);border-radius:16px;background:var(--blush2);cursor:pointer;color:var(--ink)}
+.adult input{width:26px;height:26px;accent-color:var(--adult);flex:none}
+.adult b{font-size:16px;color:var(--adult)}
+.adult span{display:flex;flex-direction:column;line-height:1.35}
+.adult small{color:var(--ink2)!important}
+.adult:has(input:checked){border-style:solid;background:#FFD1DC}
+.adult.mini{min-height:42px;padding:4px 10px;gap:8px!important;border-width:1.5px}
+.adult.mini input{width:20px;height:20px}
+.adult.mini b{font-size:14px}
+.drawer-info{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;background:var(--sky2);font-size:15px}
+.drawer-info b{font-weight:800}
+.drawer-info.secret{background:var(--blush2)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.row.end{justify-content:flex-end}
+.btn{min-height:46px;padding:0 20px;border-radius:999px;border:1.5px solid var(--ink);background:#fff;cursor:pointer;font-weight:800;font-size:15px;box-shadow:0 3px 0 var(--ink);display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.btn.ink{background:var(--ho2);border-color:#2E3870;color:#fff;box-shadow:0 3px 0 #2E3870}
+.btn.sm{min-height:38px;padding:0 14px;font-size:13px;box-shadow:0 2px 0 var(--ink)}
+.btn.danger{color:var(--err);border-color:var(--err);box-shadow:0 2px 0 var(--err)}
+.btn:disabled{opacity:.5;cursor:default}
+.err{margin:0;min-height:20px;color:var(--err);font-size:14px}
+.saved{font-size:13px;color:var(--ink3);margin-right:auto}
+.draft{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;background:var(--ho1);font-size:14px}
+.draft button{margin-left:auto}
+.editing{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;background:var(--lav);font-size:14px;font-weight:700}
+.editing button{margin-left:auto}
+
+/* 끌어다 놓기 */
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:170px;border:2px dashed var(--ink3);border-radius:var(--r);background:var(--lav2);text-align:center;padding:20px;cursor:pointer;transition:background .2s,border-color .2s}
+.drop.over{background:var(--ho2soft);border-color:var(--ho2)}
+.drop b{font:400 20px 'Jua',sans-serif}
+.drop span{font-size:14px;color:var(--ink2)}
+.bulk{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:16px 0 4px;padding:12px 14px;border-radius:14px;background:var(--sky2);font-size:14px}
+.bulk .lbl{font-size:13px}
+.bulk .in{min-height:40px;width:auto}
+.files{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.file{display:grid;grid-template-columns:110px 1fr;gap:12px;padding:12px;border:1.5px solid var(--line);border-radius:16px;background:#fff}
+.file img,.file .pdfi{width:110px;height:110px;object-fit:cover;border-radius:12px;background:var(--lav2)}
+.file .pdfi{display:grid;place-items:center;font:900 22px 'Nunito',sans-serif;color:var(--adult);background:var(--blush2);border:1.5px solid var(--blush)}
+.file .fields{display:flex;flex-direction:column;gap:8px}
+.file .meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:700 12px 'Nunito','Gowun Dodum',sans-serif;color:var(--ink3);word-break:break-all}
+.file .meta .ok{color:#2E7D32}
+.file .meta button{margin-left:auto}
+.file .in{min-height:40px;font-size:15px}
+.file .two{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.file.done{opacity:.55}
+.file.fail{border-color:var(--err)}
+.prog{height:10px;border-radius:999px;background:var(--lav2);overflow:hidden;border:1px solid var(--line)}
+.prog i{display:block;height:100%;width:0;background:var(--ho2);transition:width .3s}
+
+/* 관리 목록 */
+.filter{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px}
+.filter button{min-height:38px;padding:0 14px;border:0;border-radius:999px;background:none;cursor:pointer;font-weight:800;font-size:13px}
+.filter button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.mlist{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.mlist li{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px}
+.mlist .who{flex:none;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);background:var(--ho1)}
+.mlist .who.ho2{background:var(--ho2)}
+.mlist img,.mlist .pdfs{flex:none;width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--lav2)}
+.mlist .pdfs{display:grid;place-items:center;font:900 13px Nunito,sans-serif;color:var(--adult);background:var(--blush2)}
+.mlist .t{flex:1;line-height:1.4}
+.mlist .t b{display:block;font-weight:400;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mlist .t small{font:700 12px 'Nunito','Gowun Dodum',sans-serif;color:var(--ink3)}
+.mlist .acts{display:flex;gap:6px;flex:none}
+.badge{display:inline-block;font:800 11px 'Nunito','Gowun Dodum',sans-serif;padding:1px 8px;margin-right:4px;border-radius:999px;background:var(--blush);vertical-align:2px}
+.empty{color:var(--ink3);padding:20px 0;text-align:center}
+
+.gate{text-align:center;padding:60px 20px;border:1.5px dashed var(--ink3);border-radius:var(--r);background:var(--sky2)}
+.gate h2{margin:0 0 6px;font:400 24px 'Jua',sans-serif}
+.gate p{margin:0 0 18px;color:var(--ink2)}
+
+dialog{width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border:1.5px solid var(--ink);border-radius:24px;padding:22px;box-shadow:0 6px 0 var(--ink)}
+dialog::backdrop{background:rgba(206,222,242,.7);backdrop-filter:blur(6px)}
+dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
+.dimg{width:100%;max-height:220px;object-fit:contain;border-radius:14px;background:var(--lav2)}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,24px);opacity:0;visibility:hidden;background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s .4s;z-index:20}
+.toast.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .2s}
+
+@media (max-width:600px){
+  body{font-size:16px}
+  h1{font-size:22px}
+  .wrap{padding:16px 12px 80px}
+  .card{padding:16px 14px}
+  .grid2,.grid3{grid-template-columns:1fr 1fr}
+  .grid3>:first-child{grid-column:1/-1}
+  .file{grid-template-columns:72px 1fr}
+  .file img,.file .pdfi{width:72px;height:72px}
+  .mlist li{flex-wrap:wrap}
+  .mlist .acts{width:100%;justify-content:flex-end}
+  dialog{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-pubam-who="off">
+
+<header class="top">
+  <div class="top-in">
+    <a class="back" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>방으로</a>
+    <h1>올리기</h1>
+    <span class="me" id="me"></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="gate" id="gate" hidden>
+    <h2>PL만 볼 수 있는 화면이에요</h2>
+    <p>글, 그림, 로그는 PL로 로그인해야 올릴 수 있어요.</p>
+    <button class="btn ink" type="button" id="loginBtn">PL 로그인</button>
+  </section>
+  <p class="empty" id="loadingMsg">불러오는 중…</p>
+
+  <div id="app" hidden>
+    <nav class="tabs" role="tablist" aria-label="올리기 메뉴">
+      <button class="tab" role="tab" id="t-post" data-tab="post" style="--d:var(--blush)">글 쓰기</button>
+      <button class="tab" role="tab" id="t-art" data-tab="art" style="--d:var(--lav)">그림 올리기</button>
+      <button class="tab" role="tab" id="t-log" data-tab="log" style="--d:var(--sky)">로그 올리기</button>
+      <button class="tab" role="tab" id="t-manage" data-tab="manage" style="--d:var(--mint)">올린 것 고치기</button>
+    </nav>
+
+    <!-- ===== 글 쓰기 ===== -->
+    <section id="v-post" role="tabpanel" aria-labelledby="t-post">
+      <div class="card">
+        <h2 id="postHead">글 쓰기</h2>
+        <p class="sub">쓰는 동안 이 기기에 자동으로 임시저장돼요.</p>
+        <form class="f" id="postForm" novalidate>
+          <div class="editing" id="editingBar" hidden><span id="editingTxt"></span><button class="btn sm" type="button" id="stopEdit">새 글 쓰기로</button></div>
+          <div class="draft" id="draftBar" hidden><span id="draftTxt">임시저장해 둔 내용을 불러왔어요.</span><button class="btn sm" type="button" id="dropDraft">버리고 새로 쓰기</button></div>
+          <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인 글</b><small>체크하면 비밀 서랍(성인 비번)으로 들어가요. 내 글·네 글 서랍에는 안 보여요.</small></span></label>
+          <div class="drawer-info" id="drawerInfo"><span>서랍</span><b id="drawerName"></b><small style="color:var(--ink3)">로그인한 사람 기준으로 자동</small></div>
+          <label>제목<input name="title" maxlength="200" required autocomplete="off"></label>
+          <label>접었을 때 보이는 문구 <small>비워 두면 제목이 보여요</small><input name="fold_text" maxlength="120" autocomplete="off" placeholder="예: 출발 전날 밤, 둘이 나눈 이야기"></label>
+          <div class="grid3">
+            <label>폴더 <small>서랍 안에서 묶는 곳</small><select name="folder_id" id="folderSel"></select></label>
+            <label>날짜<input name="written_on" type="date"></label>
+            <label>종류<input name="kind" list="kinds" maxlength="20" placeholder="단문"></label>
+          </div>
+          <div class="grid2">
+            <label>말머리<select name="head"><option value="">없음</option><option>IF</option><option>AU</option></select></label>
+            <label>태그 <small>쉼표로 나눠요</small><input name="tags" placeholder="출발전, 일상" autocomplete="off"></label>
+          </div>
+          <label>본문 <small>빈 줄로 문단을 나눠요</small><textarea name="body" rows="14"></textarea></label>
+          <p class="err" id="postErr" role="alert"></p>
+          <div class="row end">
+            <span class="saved" id="savedAt" aria-live="polite"></span>
+            <button class="btn ink" type="submit" id="postSave">올리기</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===== 그림 올리기 ===== -->
+    <section id="v-art" role="tabpanel" aria-labelledby="t-art" hidden>
+      <div class="card">
+        <h2>그림 올리기</h2>
+        <p class="sub">여러 장을 한꺼번에 끌어다 놓으세요. 올리기 전에 용량을 줄여요 (긴 쪽 2400px, WebP).</p>
+        <label class="drop" id="drop" tabindex="0">
+          <b>여기로 그림을 끌어다 놓기</b>
+          <span>또는 눌러서 고르기 · 여러 장 가능 · PNG, JPG, WebP, GIF</span>
+          <input type="file" id="fileIn" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="sr">
+        </label>
+        <div class="bulk" id="bulk" hidden>
+          <label class="lbl">모두 같은 날짜로<input class="in" type="date" id="bulkDate"></label>
+          <label class="adult mini"><input type="checkbox" id="bulkAdult"><b>모두 성인</b></label>
+          <button class="btn sm" type="button" id="bulkApply">적용</button>
+          <button class="btn sm" type="button" id="bulkClear" style="margin-left:auto">목록 비우기</button>
+        </div>
+        <ul class="files" id="files"></ul>
+        <div id="upBox" hidden style="margin-top:14px">
+          <div class="prog" aria-hidden="true"><i id="progBar"></i></div>
+          <p class="err" id="artErr" role="alert"></p>
+          <div class="row end"><span class="saved" id="upCount"></span><button class="btn ink" type="button" id="upGo">모두 올리기</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 로그 올리기 (PDF) ===== -->
+    <section id="v-log" role="tabpanel" aria-labelledby="t-log" hidden>
+      <div class="card">
+        <h2>로그 올리기 (PDF)</h2>
+        <p class="sub">세션 백업 PDF를 여러 개 한꺼번에 끌어다 놓으세요. 하나가 로그 하나가 돼요. TV를 누르면 시나리오별로 보여요. (PDF 하나 50MB까지)</p>
+        <label class="drop" id="ldrop" tabindex="0">
+          <b>여기로 PDF를 끌어다 놓기</b>
+          <span>또는 눌러서 고르기 · 여러 개 가능</span>
+          <input type="file" id="lfileIn" accept="application/pdf,.pdf" multiple class="sr">
+        </label>
+        <div class="bulk" id="lbulk" hidden>
+          <label class="lbl">모두 같은 시나리오<input class="in" id="lbulkSc" list="scList" maxlength="60" placeholder="시나리오 이름"></label>
+          <label class="lbl">모두 같은 날짜<input class="in" type="date" id="lbulkDate"></label>
+          <label class="adult mini"><input type="checkbox" id="lbulkAdult"><b>모두 성인</b></label>
+          <button class="btn sm" type="button" id="lbulkApply">적용</button>
+          <button class="btn sm" type="button" id="lbulkClear" style="margin-left:auto">목록 비우기</button>
+        </div>
+        <ul class="files" id="lfiles"></ul>
+        <div id="lupBox" hidden style="margin-top:14px">
+          <div class="prog" aria-hidden="true"><i id="lprogBar"></i></div>
+          <p class="err" id="logErr" role="alert"></p>
+          <div class="row end"><span class="saved" id="lupCount"></span><button class="btn ink" type="button" id="lupGo">모두 올리기</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 올린 것 고치기 ===== -->
+    <section id="v-manage" role="tabpanel" aria-labelledby="t-manage" hidden>
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2>올린 글</h2>
+          <div class="filter" role="group" aria-label="누가 올린 것"><button type="button" data-f="mine" aria-pressed="true">내 것</button><button type="button" data-f="all" aria-pressed="false">전부</button></div>
+        </div>
+        <ul class="mlist" id="postList"></ul>
+      </div>
+      <div class="card">
+        <h2>올린 그림</h2>
+        <ul class="mlist" id="artList"></ul>
+      </div>
+      <div class="card">
+        <h2>올린 로그</h2>
+        <ul class="mlist" id="logList"></ul>
+      </div>
+    </section>
+  </div>
+</main>
+
+<dialog id="artDlg" aria-labelledby="artDlgT">
+  <form class="f" id="artForm" method="dialog">
+    <h2 id="artDlgT">그림 고치기</h2>
+    <img class="dimg" id="artImg" alt="">
+    <label>그림 바꾸기 <small>안 고르면 그대로</small><input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+    <label>제목<input name="title" maxlength="200"></label>
+    <label>접었을 때 보이는 문구 <small>비워 두면 제목이 보여요</small><input name="fold_text" maxlength="120"></label>
+    <label>한 줄 설명<input name="caption" maxlength="200"></label>
+    <label>날짜<input name="drawn_on" type="date"></label>
+    <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인 그림</b><small>그림 보기의 성인 탭(비번)에만 보여요</small></span></label>
+    <p class="err" id="artDlgErr" role="alert"></p>
+    <div class="row end"><button class="btn" type="button" id="artDlgCancel">취소</button><button class="btn ink" type="submit" id="artDlgSave">저장</button></div>
+  </form>
+</dialog>
+
+<dialog id="logDlg" aria-labelledby="logDlgT">
+  <form class="f" id="logForm" method="dialog">
+    <h2 id="logDlgT">로그 고치기</h2>
+    <label>시나리오 이름<input name="scenario" list="scList" maxlength="60" required></label>
+    <label>접었을 때 보이는 문구 <small>비워 두면 제목이 보여요</small><input name="fold_text" maxlength="120"></label>
+    <label>제목 <small>펼쳤을 때 위에 보여요</small><input name="title" maxlength="200" required></label>
+    <label>날짜<input name="played_on" type="date"></label>
+    <label>PDF 바꾸기 <small>안 고르면 그대로</small><input type="file" name="file" accept="application/pdf,.pdf"></label>
+    <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인 로그</b><small>TV의 성인 묶음(비번)에만 보여요</small></span></label>
+    <p class="err" id="logDlgErr" role="alert"></p>
+    <div class="row end"><button class="btn" type="button" id="logDlgCancel">취소</button><button class="btn ink" type="submit" id="logDlgSave">저장</button></div>
+  </form>
+</dialog>
+
+<datalist id="kinds"><option>단문</option><option>썰</option><option>메모</option><option>중편</option><option>장편</option><option>후기</option></datalist>
+<datalist id="scList"></datalist>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/pubam.js"></script>
+<script>
+{
+const P = window.PUBAM, sb = P.sb, esc = P.esc;
+const $ = id => document.getElementById(id);
+const DRAWER = { ho1: '내 글 (HO1 PL)', ho2: '네 글 (HO2 PL)', secret: '비밀 서랍 (성인)' };
+const pad = n => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const dot = s => (s || '').replace(/-/g, '.');
+const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
+const pubUrl = p => P.mediaUrl(p);
+const baseName = n => n.replace(/\.[^.]+$/, '');
+let tt = 0;
+function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
+
+let POSTS = [], ARTS = [], LOGS = [], FOLDERS = [], tab = 'post', filter = 'mine', started = false;
+
+/* ---------- 탭 ---------- */
+const TABS = ['post', 'art', 'log', 'manage'];
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'));
+  TABS.forEach(k => $('v-' + k).hidden = k !== t);
+  if (t === 'manage') renderManage();
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { setTab(b.dataset.tab); history.replaceState(null, '', '#' + b.dataset.tab); }));
+
+/* ---------- 불러오기 ---------- */
+async function loadAll(){
+  const [ps, as, ls, fs] = await Promise.all([
+    sb.from('posts').select('*').order('created_at', { ascending: false }),
+    sb.from('artworks').select('*').order('created_at', { ascending: false }),
+    sb.from('logs').select('*').order('created_at', { ascending: false }),
+    sb.from('folders').select('*').order('sort').order('id')
+  ]);
+  const e = ps.error || as.error || ls.error || fs.error;
+  if (e) { toast(P.msg(e)); return; }
+  POSTS = ps.data; ARTS = as.data; LOGS = ls.data; FOLDERS = fs.data;
+  $('scList').innerHTML = [...new Set(LOGS.map(l => l.scenario))].map(n => `<option value="${esc(n)}">`).join('');
+  fillFolders();
+  if (tab === 'manage') renderManage();
+}
+const folderName = id => { const f = FOLDERS.find(x => x.id === id); return f ? f.name : '폴더 없음'; };
+
+/* =========================================================
+   글 쓰기 + 자동 임시저장 + 폴더
+   ========================================================= */
+const pf = $('postForm');
+const FIELDS = ['title', 'fold_text', 'folder_id', 'written_on', 'kind', 'head', 'tags', 'body', 'is_adult'];
+let editing = null, draftTimer = 0;
+const draftKey = () => `pubam-draft:${P.user.id}:${editing ? editing.id : 'new'}`;
+const curDrawer = () => pf.is_adult.checked ? 'secret' : (editing ? editing.author : P.member.slot);
+function formData(){ const o = {}; FIELDS.forEach(k => o[k] = k === 'is_adult' ? pf[k].checked : pf[k].value); return o; }
+function fillForm(o){
+  pf.is_adult.checked = !!o.is_adult; fillFolders();
+  FIELDS.forEach(k => { if (k !== 'is_adult') pf[k].value = o[k] == null ? '' : o[k]; });
+  if (pf.folder_id.value !== String(o.folder_id || '')) pf.folder_id.value = '';
+  syncDrawer();
+}
+function blank(){ return { title: '', fold_text: '', folder_id: '', written_on: today(), kind: '단문', head: '', tags: '', body: '', is_adult: false }; }
+function fromPost(p){ return { title: p.title, fold_text: p.fold_text || '', folder_id: p.folder_id || '', written_on: p.written_on || '', kind: p.kind, head: p.head || '', tags: (p.tags || []).join(', '), body: p.body, is_adult: p.is_adult }; }
+function same(a, b){ return FIELDS.every(k => String(a[k] == null ? '' : a[k]) === String(b[k] == null ? '' : b[k])); }
+/* 폴더 고르기: 지금 서랍(내 글/네 글/비밀)의 폴더만 */
+function fillFolders(){
+  if (!P.member) return;
+  const keep = pf.folder_id.value, d = curDrawer();
+  const list = FOLDERS.filter(f => f.kind === 'post' && f.drawer === d);
+  pf.folder_id.innerHTML = '<option value="">폴더 없음</option>' + list.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('') + '<option value="__new">+ 새 폴더 만들기…</option>';
+  pf.folder_id.value = list.some(f => String(f.id) === keep) ? keep : '';
+}
+function syncDrawer(){
+  const d = curDrawer();
+  $('drawerName').textContent = DRAWER[d];
+  $('drawerInfo').classList.toggle('secret', d === 'secret');
+}
+pf.is_adult.addEventListener('change', () => { fillFolders(); syncDrawer(); });
+pf.folder_id.addEventListener('change', async () => {
+  if (pf.folder_id.value !== '__new') return;
+  pf.folder_id.value = '';
+  const name = (prompt(`새 폴더 이름 (${DRAWER[curDrawer()]})`) || '').trim();
+  if (!name) return;
+  const d = curDrawer(), sort = Math.max(0, ...FOLDERS.filter(f => f.drawer === d && f.kind === 'post').map(f => f.sort)) + 1;
+  const r = await sb.from('folders').insert({ kind: 'post', drawer: d, name: name.slice(0, 40), sort }).select('*').single();
+  if (r.error) { toast(P.msg(r.error)); return; }
+  FOLDERS.push(r.data); fillFolders(); pf.folder_id.value = String(r.data.id);
+  pf.dispatchEvent(new Event('input')); toast(`폴더 「${r.data.name}」을 만들었어요`);
+});
+
+function openPost(p){
+  editing = p || null;
+  const base = p ? fromPost(p) : blank();
+  let draft = null; try { draft = JSON.parse(localStorage.getItem(draftKey()) || 'null'); } catch (e) {}
+  if (draft && !same(Object.assign(blank(), draft.data), base)) {
+    fillForm(Object.assign(blank(), draft.data));
+    $('draftTxt').textContent = `${draft.at} 에 임시저장해 둔 내용을 불러왔어요.`;
+    $('dropDraft').textContent = p ? '버리고 원래 글로' : '버리고 새로 쓰기';
+    $('draftBar').hidden = false;
+  } else { fillForm(base); $('draftBar').hidden = true; }
+  $('editingBar').hidden = !p;
+  if (p) $('editingTxt').textContent = `「${p.title}」 고치는 중`;
+  $('postHead').textContent = p ? '글 고치기' : '글 쓰기';
+  $('postSave').textContent = p ? '고친 내용 저장' : '올리기';
+  $('postErr').textContent = ''; $('savedAt').textContent = '';
+}
+pf.addEventListener('input', () => {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    const d = new Date(), at = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    try { localStorage.setItem(draftKey(), JSON.stringify({ at, data: formData() })); $('savedAt').textContent = `${at} 임시저장됨`; }
+    catch (e) { $('savedAt').textContent = '임시저장 실패 (저장 공간 부족)'; }
+  }, 600);
+});
+$('dropDraft').addEventListener('click', () => {
+  if (!confirm('임시저장한 내용을 버릴까요?')) return;
+  try { localStorage.removeItem(draftKey()); } catch (e) {}
+  openPost(editing);
+});
+$('stopEdit').addEventListener('click', () => { openPost(null); history.replaceState(null, '', '#post'); });
+const nextSort = fid => Math.max(0, ...POSTS.filter(p => p.folder_id === fid).map(p => p.sort_order || 0)) + 1;
+pf.addEventListener('submit', async e => {
+  e.preventDefault();
+  const o = formData();
+  const fid = o.folder_id && o.folder_id !== '__new' ? +o.folder_id : null;
+  const row = {
+    title: o.title.trim(), fold_text: o.fold_text.trim(), folder_id: fid, written_on: o.written_on || null,
+    kind: o.kind.trim() || '단문', head: o.head || null,
+    tags: o.tags.split(/[,，]/).map(t => t.trim().replace(/^#/, '')).filter(Boolean),
+    body: o.body.replace(/\r/g, ''), is_adult: o.is_adult
+  };
+  if (!row.title) { $('postErr').textContent = '제목을 적어 주세요'; pf.title.focus(); return; }
+  if (!editing || editing.folder_id !== fid) row.sort_order = nextSort(fid);
+  const btn = $('postSave'); btn.disabled = true; $('postErr').textContent = '';
+  const res = editing
+    ? await sb.from('posts').update(row).eq('id', editing.id).select('id')
+    : await sb.from('posts').insert(Object.assign({ author: P.member.slot }, row)).select('id');
+  btn.disabled = false;
+  if (res.error) { $('postErr').textContent = P.msg(res.error); return; }
+  clearTimeout(draftTimer);
+  try { localStorage.removeItem(draftKey()); } catch (e) {}
+  toast(editing ? '고쳤어요' : (row.is_adult ? '비밀 서랍에 올렸어요' : '올렸어요'));
+  await loadAll();
+  openPost(null); history.replaceState(null, '', '#post');
+  window.scrollTo({ top: 0 });
+});
+
+/* =========================================================
+   여러 파일 끌어다 놓기: 그림(압축) · 로그(PDF) 같은 틀
+   ========================================================= */
+function dropZone(zone, input, onFiles){
+  input.addEventListener('change', () => { onFiles(input.files); input.value = ''; });
+  zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.remove('over'); }));
+  zone.addEventListener('drop', e => onFiles(e.dataTransfer.files));
+}
+/* 탭 아무 데나 놓아도 받기 */
+window.addEventListener('dragover', e => { if ((tab === 'art' || tab === 'log') && P.isPL()) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  if (!P.isPL()) return;
+  if (tab === 'art' && !$('drop').contains(e.target)) { e.preventDefault(); addArts(e.dataTransfer.files); }
+  if (tab === 'log' && !$('ldrop').contains(e.target)) { e.preventDefault(); addLogs(e.dataTransfer.files); }
+});
+
+/* ---------- 그림 ---------- */
+let queue = [], qid = 0, uploading = false;
+function addArts(list){
+  const imgs = [...list].filter(f => /^image\/(png|jpeg|webp|gif)$/.test(f.type));
+  if (imgs.length < list.length) toast('그림 파일(PNG, JPG, WebP, GIF)만 올릴 수 있어요');
+  imgs.forEach(file => {
+    const it = { key: ++qid, file, title: baseName(file.name), fold_text: '', caption: '', drawn_on: today(), is_adult: false, status: 'squash', url: URL.createObjectURL(file) };
+    queue.push(it);
+    P.compressImage(file).then(r => { it.blob = r.blob; it.ext = r.ext; it.status = r.blob.size > P.MAX_BYTES ? 'big' : 'ready'; renderArts(); })
+      .catch(() => { it.status = 'bad'; renderArts(); });
+  });
+  renderArts();
+}
+function statusText(it, limit){
+  if (it.status === 'squash') return '줄이는 중…';
+  if (it.status === 'bad') return '<span style="color:var(--err)">이 파일은 읽을 수 없어요</span>';
+  if (it.status === 'big') return `<span style="color:var(--err)">${kb(it.blob.size)} · ${limit}가 넘어 못 올려요</span>`;
+  const size = it.blob === it.file ? `${kb(it.file.size)}` + (it.isPdf ? '' : ' (그대로)') : `${kb(it.file.size)} → <span class="ok">${kb(it.blob.size)}</span>`;
+  if (it.status === 'up') return size + ' · 올리는 중…';
+  if (it.status === 'done') return size + ' · <span class="ok">올렸어요</span>';
+  if (it.status === 'fail') return size + ` · <span style="color:var(--err)">${esc(it.err || '실패')}</span>`;
+  return size;
+}
+/* 목록 그리기: 입력 중인 칸은 그대로 두고 상태 글자만 바꿈 */
+function renderRows(ul, items, makeLi, limit){
+  const have = new Map([...ul.children].map(li => [+li.dataset.key, li]));
+  items.forEach(it => {
+    let li = have.get(it.key);
+    if (!li) { li = makeLi(it); li.dataset.key = it.key; ul.appendChild(li); }
+    li.querySelectorAll('[data-k]').forEach(x => { if (x.type === 'checkbox') x.checked = !!it[x.dataset.k]; else if (document.activeElement !== x) x.value = it[x.dataset.k] == null ? '' : it[x.dataset.k]; });
+    li.querySelector('.st').innerHTML = statusText(it, limit);
+    li.classList.toggle('done', it.status === 'done');
+    li.classList.toggle('fail', /fail|bad|big/.test(it.status));
+    li.querySelectorAll('input,button').forEach(x => x.disabled = it.status === 'up' || it.status === 'done');
+    have.delete(it.key);
+  });
+  have.forEach(li => li.remove());
+}
+function bindRows(ul, getList, rerender){
+  ul.addEventListener('input', e => {
+    const li = e.target.closest('.file'), k = e.target.dataset.k; if (!li || !k) return;
+    const it = getList().find(i => i.key === +li.dataset.key);
+    it[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  });
+  ul.addEventListener('click', e => {
+    if (!e.target.closest('[data-rm]')) return;
+    const key = +e.target.closest('.file').dataset.key, list = getList(), i = list.findIndex(x => x.key === key);
+    if (list[i].url) URL.revokeObjectURL(list[i].url);
+    list.splice(i, 1); rerender();
+  });
+}
+const adultBox = (id, label) => `<label class="adult mini" for="${id}"><input type="checkbox" id="${id}" data-k="is_adult"><b>${label}</b></label>`;
+function renderArts(){
+  renderRows($('files'), queue, it => {
+    const li = document.createElement('li'); li.className = 'file';
+    li.innerHTML = `<img src="${it.url}" alt="">
+      <div class="fields">
+        <div class="meta"><span class="st"></span><button class="btn sm" type="button" data-rm aria-label="이 그림 빼기">빼기</button></div>
+        <label class="sr" for="ft-${it.key}">제목</label><input class="in" id="ft-${it.key}" data-k="title" maxlength="200" placeholder="제목">
+        <label class="sr" for="fo-${it.key}">접었을 때 보이는 문구</label><input class="in" id="fo-${it.key}" data-k="fold_text" maxlength="120" placeholder="접었을 때 보이는 문구 (비우면 제목)">
+        <label class="sr" for="fc-${it.key}">한 줄 설명</label><input class="in" id="fc-${it.key}" data-k="caption" maxlength="200" placeholder="한 줄 설명">
+        <div class="two"><label class="sr" for="fd-${it.key}">날짜</label><input class="in" id="fd-${it.key}" type="date" data-k="drawn_on">${adultBox('fa-' + it.key, '성인')}</div>
+      </div>`;
+    return li;
+  }, '10MB');
+  const todo = queue.filter(i => i.status !== 'done'), ready = queue.filter(i => i.status === 'ready' || i.status === 'fail').length;
+  $('bulk').hidden = $('upBox').hidden = !queue.length;
+  $('upCount').textContent = queue.length ? `${ready}장 올릴 준비됨` + (todo.length - ready > 0 ? ` · ${todo.length - ready}장 대기/불가` : '') : '';
+  $('upGo').disabled = !ready || uploading;
+}
+bindRows($('files'), () => queue, renderArts);
+dropZone($('drop'), $('fileIn'), addArts);
+$('bulkApply').addEventListener('click', () => {
+  const d = $('bulkDate').value, a = $('bulkAdult').checked;
+  queue.forEach(it => { if (it.status === 'done' || it.status === 'up') return; if (d) it.drawn_on = d; it.is_adult = a; });
+  renderArts(); toast('모든 그림에 적용했어요');
+});
+$('bulkClear').addEventListener('click', () => { if (uploading) return; queue.forEach(i => URL.revokeObjectURL(i.url)); queue = []; renderArts(); $('progBar').style.width = '0'; });
+$('upGo').addEventListener('click', async () => {
+  const list = queue.filter(i => i.status === 'ready' || i.status === 'fail');
+  if (!list.length) return;
+  uploading = true; $('artErr').textContent = ''; let n = 0, ok = 0;
+  for (const it of list) {
+    it.status = 'up'; renderArts();
+    try {
+      const path = await P.uploadImage(it.blob, it.ext, 'art');
+      const r = await sb.from('artworks').insert({ author: P.member.slot, title: (it.title || '').trim(), fold_text: (it.fold_text || '').trim(), caption: (it.caption || '').trim(), drawn_on: it.drawn_on || null, is_adult: !!it.is_adult, image_path: path });
+      if (r.error) { await sb.storage.from('media').remove([path]); throw r.error; }
+      it.status = 'done'; ok++;
+    } catch (err) { it.status = 'fail'; it.err = P.msg(err); }
+    n++; $('progBar').style.width = Math.round(n / list.length * 100) + '%'; renderArts();
+  }
+  uploading = false; renderArts();
+  if (ok === list.length) toast(`${ok}장 올렸어요`);
+  else $('artErr').textContent = `${list.length - ok}장은 못 올렸어요. 다시 "모두 올리기"를 눌러 주세요.`;
+  loadAll();
+});
+
+/* ---------- 로그 (PDF) ---------- */
+let lqueue = [], luploading = false;
+function addLogs(list){
+  const pdfs = [...list].filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+  if (pdfs.length < list.length) toast('PDF 파일만 올릴 수 있어요');
+  pdfs.forEach(file => {
+    lqueue.push({ key: ++qid, file, blob: file, isPdf: true, scenario: $('lbulkSc').value.trim(), fold_text: '', title: baseName(file.name), played_on: today(), is_adult: false, status: file.size > P.MAX_PDF ? 'big' : 'ready' });
+  });
+  renderLogs();
+}
+function renderLogs(){
+  renderRows($('lfiles'), lqueue, it => {
+    const li = document.createElement('li'); li.className = 'file';
+    li.innerHTML = `<span class="pdfi" aria-hidden="true">PDF</span>
+      <div class="fields">
+        <div class="meta"><span>${esc(it.file.name)}</span> · <span class="st"></span><button class="btn sm" type="button" data-rm aria-label="이 PDF 빼기">빼기</button></div>
+        <label class="sr" for="ls-${it.key}">시나리오 이름</label><input class="in" id="ls-${it.key}" data-k="scenario" list="scList" maxlength="60" placeholder="시나리오 이름 (필수)">
+        <label class="sr" for="lo-${it.key}">접었을 때 보이는 문구</label><input class="in" id="lo-${it.key}" data-k="fold_text" maxlength="120" placeholder="접었을 때 보이는 문구 (비우면 파일 이름)">
+        <div class="two"><label class="sr" for="ld-${it.key}">날짜</label><input class="in" id="ld-${it.key}" type="date" data-k="played_on">${adultBox('la-' + it.key, '성인')}</div>
+      </div>`;
+    return li;
+  }, '50MB');
+  const ready = lqueue.filter(i => i.status === 'ready' || i.status === 'fail').length;
+  $('lbulk').hidden = $('lupBox').hidden = !lqueue.length;
+  $('lupCount').textContent = lqueue.length ? `${ready}개 올릴 준비됨` : '';
+  $('lupGo').disabled = !ready || luploading;
+}
+bindRows($('lfiles'), () => lqueue, renderLogs);
+dropZone($('ldrop'), $('lfileIn'), addLogs);
+$('lbulkApply').addEventListener('click', () => {
+  const s = $('lbulkSc').value.trim(), d = $('lbulkDate').value, a = $('lbulkAdult').checked;
+  lqueue.forEach(it => { if (it.status === 'done' || it.status === 'up') return; if (s) it.scenario = s; if (d) it.played_on = d; it.is_adult = a; });
+  renderLogs(); toast('모든 로그에 적용했어요');
+});
+$('lbulkClear').addEventListener('click', () => { if (luploading) return; lqueue = []; renderLogs(); $('lprogBar').style.width = '0'; });
+$('lupGo').addEventListener('click', async () => {
+  const list = lqueue.filter(i => i.status === 'ready' || i.status === 'fail');
+  const noSc = list.find(i => !(i.scenario || '').trim());
+  if (noSc) { $('logErr').textContent = `「${noSc.file.name}」의 시나리오 이름을 적어 주세요`; return; }
+  luploading = true; $('logErr').textContent = ''; let n = 0, ok = 0;
+  for (const it of list) {
+    it.status = 'up'; renderLogs();
+    try {
+      const path = await P.uploadImage(it.file, 'pdf', 'logs');
+      const fold = (it.fold_text || '').trim();
+      const r = await sb.from('logs').insert({ scenario: it.scenario.trim(), fold_text: fold, title: fold || it.title, played_on: it.played_on || null, is_adult: !!it.is_adult, pdf_path: path, body: '' });
+      if (r.error) { await sb.storage.from('media').remove([path]); throw r.error; }
+      it.status = 'done'; ok++;
+    } catch (err) { it.status = 'fail'; it.err = P.msg(err); }
+    n++; $('lprogBar').style.width = Math.round(n / list.length * 100) + '%'; renderLogs();
+  }
+  luploading = false; renderLogs();
+  if (ok === list.length) toast(`로그 ${ok}개를 올렸어요`);
+  else $('logErr').textContent = `${list.length - ok}개는 못 올렸어요. 다시 "모두 올리기"를 눌러 주세요.`;
+  loadAll();
+});
+
+/* =========================================================
+   올린 것 고치기 / 지우기
+   ========================================================= */
+document.querySelector('.filter').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll('.filter button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+  renderManage();
+});
+const shown = x => x.fold_text || x.title || '제목 없음';
+function renderManage(){
+  const mine = x => filter === 'all' || x.author === P.member.slot || (x.author == null && x.created_by === P.user.id);
+  const ps = POSTS.filter(mine), as = ARTS.filter(mine), ls = LOGS.filter(l => filter === 'all' || l.created_by === P.user.id);
+  const acts = (k, id) => `<span class="acts"><button class="btn sm" type="button" data-${k}e="${id}">수정</button><button class="btn sm danger" type="button" data-${k}d="${id}">삭제</button></span>`;
+  $('postList').innerHTML = ps.length ? ps.map(p => `<li>
+    <span class="who ${p.author}" title="${p.author.toUpperCase()} PL"></span>
+    <span class="t"><b>${p.is_adult ? '<span class="badge">성인</span>' : ''}${esc(shown(p))}</b><small>${p.is_adult ? '비밀 서랍' : DRAWER[p.author]} · ${esc(folderName(p.folder_id))} · ${dot(p.written_on) || '날짜 없음'}</small></span>
+    ${acts('p', p.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 글이 없어요.</li>';
+  $('artList').innerHTML = as.length ? as.map(a => `<li>
+    <span class="who ${a.author}" title="${a.author.toUpperCase()} PL"></span>
+    <img src="${esc(pubUrl(a.image_path))}" alt="" loading="lazy">
+    <span class="t"><b>${a.is_adult ? '<span class="badge">성인</span>' : ''}${esc(shown(a))}</b><small>${dot(a.drawn_on) || '날짜 없음'}${a.caption ? ' · ' + esc(a.caption) : ''}</small></span>
+    ${acts('a', a.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 그림이 없어요.</li>';
+  $('logList').innerHTML = ls.length ? ls.map(l => `<li>
+    <span class="pdfs" aria-hidden="true">${l.pdf_path ? 'PDF' : '글'}</span>
+    <span class="t"><b>${l.is_adult ? '<span class="badge">성인</span>' : ''}${esc(shown(l))}</b><small>${esc(l.scenario)} · ${dot(l.played_on) || '날짜 없음'}</small></span>
+    ${acts('l', l.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 로그가 없어요.</li>';
+}
+$('v-manage').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.pe) { editPost(+b.dataset.pe); return; }
+  if (b.dataset.ae) { editArt(+b.dataset.ae); return; }
+  if (b.dataset.le) { editLog(+b.dataset.le); return; }
+  if (b.dataset.pd) {
+    const p = POSTS.find(x => x.id === +b.dataset.pd);
+    if (!confirm(`글 「${p.title}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    const r = await sb.from('posts').delete().eq('id', p.id);
+    if (r.error) { toast(P.msg(r.error)); return; }
+    await sb.from('comments').delete().eq('target_type', 'post').eq('target_id', p.id);
+    toast('지웠어요'); loadAll(); return;
+  }
+  if (b.dataset.ad) {
+    const a = ARTS.find(x => x.id === +b.dataset.ad);
+    if (!confirm(`그림 「${shown(a)}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    const r = await sb.from('artworks').delete().eq('id', a.id);
+    if (r.error) { toast(P.msg(r.error)); return; }
+    await sb.storage.from('media').remove([a.image_path]);
+    await sb.from('comments').delete().eq('target_type', 'artwork').eq('target_id', a.id);
+    toast('지웠어요'); loadAll(); return;
+  }
+  if (b.dataset.ld) {
+    const l = LOGS.find(x => x.id === +b.dataset.ld);
+    if (!confirm(`로그 「${shown(l)}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    const r = await sb.from('logs').delete().eq('id', l.id);
+    if (r.error) { toast(P.msg(r.error)); return; }
+    const files = (l.image_paths || []).concat(l.pdf_path ? [l.pdf_path] : []);
+    if (files.length) await sb.storage.from('media').remove(files);
+    toast('지웠어요'); loadAll();
+  }
+});
+function editPost(id){
+  const p = POSTS.find(x => x.id === id); if (!p) { toast('그 글을 찾지 못했어요'); return; }
+  openPost(p); setTab('post'); history.replaceState(null, '', '#edit-post=' + id); window.scrollTo({ top: 0 }); pf.title.focus();
+}
+
+/* 그림 고치기 */
+const dlg = $('artDlg'), af = $('artForm'); let artEditing = null;
+function editArt(id){
+  const a = ARTS.find(x => x.id === id); if (!a) { toast('그 그림을 찾지 못했어요'); return; }
+  artEditing = a;
+  $('artImg').src = pubUrl(a.image_path);
+  af.file.value = ''; af.title.value = a.title || ''; af.fold_text.value = a.fold_text || ''; af.caption.value = a.caption || '';
+  af.drawn_on.value = a.drawn_on || ''; af.is_adult.checked = a.is_adult; $('artDlgErr').textContent = '';
+  dlg.showModal();
+}
+af.file.addEventListener('change', () => { const f = af.file.files[0]; if (f) $('artImg').src = URL.createObjectURL(f); });
+$('artDlgCancel').addEventListener('click', () => dlg.close());
+af.addEventListener('submit', async e => {
+  e.preventDefault();
+  const a = artEditing, btn = $('artDlgSave'); btn.disabled = true; $('artDlgErr').textContent = '';
+  const row = { title: af.title.value.trim(), fold_text: af.fold_text.value.trim(), caption: af.caption.value.trim(), drawn_on: af.drawn_on.value || null, is_adult: af.is_adult.checked };
+  let newPath = null;
+  try {
+    const f = af.file.files[0];
+    if (f) { const c = await P.compressImage(f); newPath = await P.uploadImage(c.blob, c.ext, 'art'); row.image_path = newPath; }
+    const r = await sb.from('artworks').update(row).eq('id', a.id);
+    if (r.error) throw r.error;
+    if (newPath) await sb.storage.from('media').remove([a.image_path]);
+    dlg.close(); toast('고쳤어요'); loadAll();
+  } catch (err) {
+    if (newPath) await sb.storage.from('media').remove([newPath]);
+    $('artDlgErr').textContent = P.msg(err);
+  }
+  btn.disabled = false;
+});
+
+/* 로그 고치기 */
+const ldlg = $('logDlg'), lf = $('logForm'); let logEditing = null;
+function editLog(id){
+  const l = LOGS.find(x => x.id === id); if (!l) { toast('그 로그를 찾지 못했어요'); return; }
+  logEditing = l;
+  lf.scenario.value = l.scenario || ''; lf.fold_text.value = l.fold_text || ''; lf.title.value = l.title || '';
+  lf.played_on.value = l.played_on || ''; lf.is_adult.checked = l.is_adult; lf.file.value = ''; $('logDlgErr').textContent = '';
+  ldlg.showModal();
+}
+$('logDlgCancel').addEventListener('click', () => ldlg.close());
+lf.addEventListener('submit', async e => {
+  e.preventDefault();
+  const l = logEditing, btn = $('logDlgSave');
+  const row = { scenario: lf.scenario.value.trim(), fold_text: lf.fold_text.value.trim(), title: lf.title.value.trim(), played_on: lf.played_on.value || null, is_adult: lf.is_adult.checked };
+  if (!row.scenario || !row.title) { $('logDlgErr').textContent = '시나리오 이름과 제목을 적어 주세요'; return; }
+  btn.disabled = true; $('logDlgErr').textContent = '';
+  let newPath = null;
+  try {
+    const f = lf.file.files[0];
+    if (f) { newPath = await P.uploadImage(f, 'pdf', 'logs'); row.pdf_path = newPath; }
+    const r = await sb.from('logs').update(row).eq('id', l.id);
+    if (r.error) throw r.error;
+    if (newPath && l.pdf_path) await sb.storage.from('media').remove([l.pdf_path]);
+    ldlg.close(); toast('고쳤어요'); loadAll();
+  } catch (err) {
+    if (newPath) await sb.storage.from('media').remove([newPath]);
+    $('logDlgErr').textContent = P.msg(err);
+  }
+  btn.disabled = false;
+});
+
+/* ---------- 주소로 바로 열기: #post #art #log #manage #edit-post=ID #edit-art=ID #edit-log=ID ---------- */
+function fromHash(){
+  const h = location.hash.slice(1), m = h.match(/^edit-(post|art|log)=(\d+)$/);
+  if (m) { if (m[1] === 'post') editPost(+m[2]); else { setTab('manage'); (m[1] === 'art' ? editArt : editLog)(+m[2]); } return; }
+  setTab(TABS.includes(h) ? h : 'post');
+}
+window.addEventListener('hashchange', () => { if (started) fromHash(); });
+
+/* ---------- 로그인 상태 ---------- */
+$('loginBtn').addEventListener('click', () => P.openLogin());
+P.onAuth(async () => {
+  $('loadingMsg').hidden = true;
+  const pl = P.isPL();
+  $('gate').hidden = pl; $('app').hidden = !pl;
+  $('me').innerHTML = pl ? `<i class="${P.member.slot}"></i>${esc(P.member.display_name)} <button class="btn sm" type="button" id="outBtn">로그아웃</button>` : '';
+  if (pl) $('outBtn').addEventListener('click', () => P.logout());
+  if (pl && !started) { started = true; await loadAll(); openPost(null); fromHash(); }
+  if (!pl) started = false;
+});
+if (P.offline) { $('loadingMsg').textContent = '서버에 연결하지 못했어요.'; }
+}
+</script>
+</body>
+</html>
