@@ -204,11 +204,13 @@
     '.cv-x{width:44px;height:44px;flex:none;border-radius:50%;border:1.5px solid #1F1B24;background:#fff;font:900 18px Nunito,sans-serif;cursor:pointer;box-shadow:0 2px 0 #1F1B24}' +
     '.cv-scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}' +
     '.cv-stage{position:relative;transition:transform .2s,opacity .2s}' +
-    '.cv-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;height:calc(100dvh - 128px);overscroll-behavior-x:contain}' +
+    '.cv{--cvh:calc(100dvh - 128px)}' +
+    '.cv-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;height:var(--cvh);overscroll-behavior-x:contain}' +
     '.cv-track::-webkit-scrollbar{display:none}' +
-    '.cv-slide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;display:grid;place-items:center;overflow:hidden;position:relative}' +
-    '.cv-slide img{max-width:100%;max-height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;background:#fff;box-shadow:0 2px 14px -6px rgba(31,27,36,.35)}' +
-    '.cv-slide.zoom{overflow:auto;place-items:start;touch-action:pan-x pan-y}' +
+    /* 한 장이 화면 안에 통째로 보이게: 장 칸 = 보기 칸 크기, 그림은 비율 그대로 그 안에 맞춤 */
+    '.cv-slide{flex:0 0 100%;width:100%;height:var(--cvh);box-sizing:border-box;padding:8px;scroll-snap-align:center;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}' +
+    '.cv-slide img{width:auto;height:auto;max-width:100%;max-height:calc(var(--cvh) - 16px);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;background:#fff;box-shadow:0 2px 14px -6px rgba(31,27,36,.35)}' +
+    '.cv-slide.zoom{display:block;overflow:auto;touch-action:pan-x pan-y}' +
     '.cv-slide.zoom img{max-width:none;max-height:none;width:200%;cursor:zoom-out}' +
     '.cv-end{flex-direction:column;gap:14px;text-align:center}' +
     '.cv-end p{margin:0;font:900 18px Nunito,"Gowun Dodum",sans-serif}' +
@@ -230,12 +232,12 @@
     '.cv-under .ag-cl li{background:#fff}' +
     /* 세로로 이어 보기 (웹툰처럼) */
     '.cv.vert .cv-track{display:block;overflow:visible;height:auto;scroll-snap-type:none}' +
-    '.cv.vert .cv-slide{display:block;overflow-x:auto;scroll-snap-align:none}' +
+    '.cv.vert .cv-slide{display:block;height:auto;padding:0;overflow-x:auto;scroll-snap-align:none}' +
     '.cv.vert .cv-slide img{width:min(100%,860px);max-height:none;margin:0 auto;box-shadow:none}' +
     '.cv.vert .cv-slide.zoom img{width:200%;max-width:none}' +
     '.cv.vert .cv-end{display:flex;padding:30px 0}' +
     '.cv.vert .cv-nav,.cv.vert .cv-dots{display:none}' +
-    '@media (max-width:600px){.cv-top{gap:6px;padding:8px}.cv-btn{padding:0 10px;font-size:12px;min-height:38px}.cv-x{width:48px;height:48px}.cv-nav{display:none}.cv-track{height:calc(100dvh - 120px)}.cv-top b{font-size:14px}}';
+    '@media (max-width:600px){.cv-top{gap:6px;padding:8px}.cv-btn{padding:0 10px;font-size:12px;min-height:38px}.cv-x{width:48px;height:48px}.cv-nav{display:none}.cv{--cvh:calc(100dvh - 120px)}.cv-top b{font-size:14px}}';
   document.head.appendChild(cvCss);
 
   var cv = document.createElement('div');
