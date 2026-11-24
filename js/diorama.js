@@ -279,8 +279,8 @@ function boot(){
   put(sph(0.2, COL.mintDeep, null, 20), -1.3, 4.0, -4.75);
   put(cyl(0.15, 0.12, 0.2, COL.blush, null, 20), -1.3, 3.9, -4.75);
 
-  /* rug */
-  put(cyl(2.3, 2.3, 0.02, COL.blush, null, 64), 0.2, 0.07, 0.5).castShadow = false;
+  /* 러그: 파스텔 노랑 */
+  put(cyl(2.3, 2.3, 0.02, 0xFAEDB2, null, 64), 0.2, 0.07, 0.5).castShadow = false;
   const rugEdge = put(new THREE.Mesh(new THREE.TorusGeometry(2.3, 0.05, 10, 80), mat(COL.mint)), 0.2, 0.08, 0.5);
   rugEdge.rotation.x = Math.PI / 2; rugEdge.receiveShadow = true;
 
