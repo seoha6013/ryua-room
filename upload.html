@@ -104,6 +104,27 @@ form.f{display:flex;flex-direction:column;gap:14px}
 .prog{height:10px;border-radius:999px;background:var(--lav2);overflow:hidden;border:1px solid var(--line)}
 .prog i{display:block;height:100%;width:0;background:var(--ho2);transition:width .3s}
 
+/* 만화 장 고르기: 썸네일을 끌어서 순서 바꾸기 · 빼기 · 표지 */
+.modebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:16px 0 4px;padding:10px 14px;border-radius:14px;background:var(--sky2);font-size:14px}
+.modebar b{font:400 18px 'Jua',sans-serif}
+.modebar span{color:var(--ink2);font-size:13px}
+.modebar>.btn,.modebar>label.btn{margin-left:auto}
+.pages{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.pages.small{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));max-height:46vh;overflow:auto;padding:2px}
+.pg{position:relative;border:2px solid var(--line);border-radius:14px;background:#fff;padding:6px;user-select:none;-webkit-user-select:none}
+.pg.is-cover{border-color:var(--ho2)}
+.pg img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:9px;background:var(--lav2);pointer-events:none;-webkit-user-drag:none}
+.pg .no{position:absolute;left:10px;top:10px;font:900 12px 'Nunito',sans-serif;background:var(--ink);color:#fff;border-radius:999px;padding:1px 8px}
+.pg .cv{position:absolute;right:10px;top:10px;min-height:28px;padding:0 8px;border-radius:999px;border:1.5px solid var(--ink);background:#fff;font:800 11px 'Nunito','Gowun Dodum',sans-serif;cursor:pointer}
+.pg.is-cover .cv{background:var(--ho2);border-color:#2E3870;color:#fff}
+.pg .tools{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:6px}
+.pg .tools button{min-width:34px;min-height:34px;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer;font-weight:800}
+.pg .tools button:disabled{opacity:.35;cursor:default}
+.pg .grip{cursor:grab;touch-action:none;font-size:16px}
+.pg.dragging{opacity:.35}
+.pg.over{outline:3px dashed var(--ho2);outline-offset:2px}
+.badge.comic{background:var(--ho2soft)}
+
 /* 관리 목록 */
 .filter{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px}
 .filter button{min-height:38px;padding:0 14px;border:0;border-radius:999px;background:none;cursor:pointer;font-weight:800;font-size:13px}
@@ -209,24 +230,30 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
     <!-- ===== 그림 올리기 ===== -->
     <section id="v-art" role="tabpanel" aria-labelledby="t-art" hidden>
       <div class="card">
-        <h2>그림 올리기</h2>
-        <p class="sub">여러 장을 한꺼번에 끌어다 놓으세요. 올리기 전에 용량을 줄여요 (긴 쪽 2400px, WebP).</p>
+        <h2>그림 · 만화 올리기</h2>
+        <p class="sub">한 장을 올리면 <b>그림 한 장</b>, 여러 장을 한꺼번에 올리면 <b>만화 한 편</b>(옆으로 넘겨 보기)이 돼요. 파일 이름 순서(1, 2, 10…)대로 줄을 세워요.</p>
         <label class="drop" id="drop" tabindex="0">
           <b>여기로 그림을 끌어다 놓기</b>
-          <span>또는 눌러서 고르기 · 여러 장 가능 · PNG, JPG, WebP, GIF</span>
+          <span>또는 눌러서 고르기 · 여러 장 = 만화 한 편 · PNG, JPG, WebP, GIF</span>
           <input type="file" id="fileIn" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="sr">
         </label>
-        <div class="bulk" id="bulk" hidden>
-          <label class="lbl">모두 같은 날짜로<input class="in" type="date" id="bulkDate"></label>
-          <label class="adult mini"><input type="checkbox" id="bulkAdult"><b>모두 성인</b></label>
-          <button class="btn sm" type="button" id="bulkApply">적용</button>
-          <button class="btn sm" type="button" id="bulkClear" style="margin-left:auto">목록 비우기</button>
-        </div>
-        <ul class="files" id="files"></ul>
-        <div id="upBox" hidden style="margin-top:14px">
-          <div class="prog" aria-hidden="true"><i id="progBar"></i></div>
-          <p class="err" id="artErr" role="alert"></p>
-          <div class="row end"><span class="saved" id="upCount"></span><button class="btn ink" type="button" id="upGo">모두 올리기</button></div>
+        <div id="artBox" hidden>
+          <div class="modebar"><b id="artMode"></b><span id="artHint"></span><button class="btn sm" type="button" id="artClear">목록 비우기</button></div>
+          <ul class="pages" id="pages" aria-label="올릴 장 (끌어서 순서 바꾸기)"></ul>
+          <form class="f" id="artMeta" novalidate style="margin-top:16px">
+            <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인</b><small>체크하면 그림 보기의 성인 탭(비번)에만 보여요</small></span></label>
+            <label>제목 <small id="titleHint"></small><input name="title" maxlength="200" autocomplete="off"></label>
+            <label>접었을 때 보이는 문구 <small>비워 두면 제목이 보여요</small><input name="fold_text" maxlength="120" autocomplete="off"></label>
+            <div class="grid2">
+              <label>한 줄 설명<input name="caption" maxlength="200" autocomplete="off"></label>
+              <label>날짜<input name="drawn_on" type="date"></label>
+            </div>
+          </form>
+          <div style="margin-top:14px">
+            <div class="prog" aria-hidden="true"><i id="progBar"></i></div>
+            <p class="err" id="artErr" role="alert"></p>
+            <div class="row end"><span class="saved" id="upCount"></span><button class="btn ink" type="button" id="upGo">올리기</button></div>
+          </div>
         </div>
       </div>
     </section>
@@ -281,8 +308,8 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
 <dialog id="artDlg" aria-labelledby="artDlgT">
   <form class="f" id="artForm" method="dialog">
     <h2 id="artDlgT">그림 고치기</h2>
-    <img class="dimg" id="artImg" alt="">
-    <label>그림 바꾸기 <small>안 고르면 그대로</small><input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+    <div class="modebar"><b id="editMode"></b><label class="btn sm">+ 장 추가<input type="file" id="editAdd" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="sr"></label></div>
+    <ul class="pages small" id="editPages" aria-label="장 (끌어서 순서 바꾸기)"></ul>
     <label>제목<input name="title" maxlength="200"></label>
     <label>접었을 때 보이는 문구 <small>비워 두면 제목이 보여요</small><input name="fold_text" maxlength="120"></label>
     <label>한 줄 설명<input name="caption" maxlength="200"></label>
@@ -503,19 +530,141 @@ window.addEventListener('drop', e => {
   if (tab === 'log' && !$('ldrop').contains(e.target)) { e.preventDefault(); addLogs(e.dataTransfer.files); }
 });
 
-/* ---------- 그림 ---------- */
-let queue = [], qid = 0, uploading = false;
-function addArts(list){
-  const imgs = [...list].filter(f => /^image\/(png|jpeg|webp|gif)$/.test(f.type));
-  if (imgs.length < list.length) toast('그림 파일(PNG, JPG, WebP, GIF)만 올릴 수 있어요');
-  imgs.forEach(file => {
-    const it = { key: ++qid, file, title: baseName(file.name), fold_text: '', caption: '', drawn_on: today(), is_adult: false, status: 'squash', url: URL.createObjectURL(file) };
-    queue.push(it);
-    P.compressImage(file).then(r => { it.blob = r.blob; it.ext = r.ext; it.status = r.blob.size > P.MAX_BYTES ? 'big' : 'ready'; renderArts(); })
-      .catch(() => { it.status = 'bad'; renderArts(); });
+/* ---------- 그림 · 만화: 장 고르기 편집기 (새로 올리기 · 고치기 같이 씀) ----------
+   한 장 = 그림(kind 'single'), 여러 장 = 만화 한 편(kind 'comic'). pages = 순서 있는 경로, image_path = 표지 */
+let qid = 0, uploading = false;
+const isImg = f => /^image\/(png|jpeg|webp|gif)$/.test(f.type);
+const natural = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });   /* 1, 2, 10 순서 */
+function PageEditor(ul, onChange){
+  const ed = { items: [], coverKey: null };
+  ed.add = files => {
+    const all = [...files], imgs = all.filter(isImg).sort(natural);
+    if (imgs.length < all.length) toast('그림 파일(PNG, JPG, WebP, GIF)만 올릴 수 있어요');
+    imgs.forEach(file => ed.items.push({ key: ++qid, file, url: URL.createObjectURL(file) }));
+    if (!ed.items.some(i => i.key === ed.coverKey) && ed.items[0]) ed.coverKey = ed.items[0].key;
+    render();
+  };
+  ed.load = (paths, cover) => {
+    ed.clear(true);
+    paths.forEach(p => ed.items.push({ key: ++qid, path: p, url: pubUrl(p) }));
+    const c = ed.items.find(i => i.path === cover) || ed.items[0]; ed.coverKey = c ? c.key : null;
+    render();
+  };
+  ed.clear = quiet => { ed.items.forEach(i => { if (i.file) URL.revokeObjectURL(i.url); }); ed.items = []; ed.coverKey = null; if (!quiet) render(); };
+  ed.coverIndex = () => Math.max(0, ed.items.findIndex(i => i.key === ed.coverKey));
+  function move(from, to){
+    if (to < 0 || to >= ed.items.length || from === to) return;
+    const [x] = ed.items.splice(from, 1); ed.items.splice(to, 0, x); render();
+  }
+  function render(){
+    const n = ed.items.length;
+    ul.innerHTML = ed.items.map((it, i) => `<li class="pg${it.key === ed.coverKey ? ' is-cover' : ''}" data-key="${it.key}">
+      <img src="${esc(it.url)}" alt="${i + 1}번째 장" draggable="false">
+      <span class="no">${i + 1}</span>
+      ${n > 1 ? `<button type="button" class="cv" data-cv aria-pressed="${it.key === ed.coverKey}">${it.key === ed.coverKey ? '★ 표지' : '표지로'}</button>` : ''}
+      <div class="tools">
+        <button type="button" data-l aria-label="앞으로" ${i === 0 ? 'disabled' : ''}>◀</button>
+        ${n > 1 ? '<button type="button" class="grip" data-grip aria-label="끌어서 순서 바꾸기" title="끌어서 순서 바꾸기">≡</button>' : ''}
+        <button type="button" data-r aria-label="뒤로" ${i === n - 1 ? 'disabled' : ''}>▶</button>
+        <button type="button" data-rm aria-label="이 장 빼기">✕</button>
+      </div></li>`).join('');
+    onChange && onChange(ed);
+  }
+  ul.addEventListener('click', e => {
+    const li = e.target.closest('.pg'); if (!li) return;
+    const i = ed.items.findIndex(x => x.key === +li.dataset.key);
+    if (e.target.closest('[data-cv]')) { ed.coverKey = ed.items[i].key; render(); }
+    else if (e.target.closest('[data-l]')) move(i, i - 1);
+    else if (e.target.closest('[data-r]')) move(i, i + 1);
+    else if (e.target.closest('[data-rm]')) {
+      const [x] = ed.items.splice(i, 1); if (x.file) URL.revokeObjectURL(x.url);
+      if (x.key === ed.coverKey) ed.coverKey = ed.items[0] ? ed.items[0].key : null;
+      render();
+    }
   });
-  renderArts();
+  /* 끌어서 순서 바꾸기: 마우스는 장 어디든, 손가락은 ≡ 손잡이 */
+  let drag = null;
+  ul.addEventListener('pointerdown', e => {
+    const li = e.target.closest('.pg'); if (!li || ed.items.length < 2) return;
+    if (e.target.closest('button:not([data-grip])')) return;
+    if (e.pointerType !== 'mouse' && !e.target.closest('[data-grip]')) return;
+    drag = { key: +li.dataset.key, li, x: e.clientX, y: e.clientY, on: false, over: null };
+    try { ul.setPointerCapture(e.pointerId); } catch (x) {}
+  });
+  ul.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.on && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+    drag.on = true; drag.li.classList.add('dragging'); e.preventDefault();
+    const t = document.elementFromPoint(e.clientX, e.clientY), over = t && t.closest('#' + ul.id + ' .pg');
+    if (drag.over && drag.over !== over) drag.over.classList.remove('over');
+    if (over && over !== drag.li) { over.classList.add('over'); drag.over = over; } else drag.over = null;
+  });
+  const end = () => {
+    if (!drag) return;
+    const d = drag; drag = null; d.li.classList.remove('dragging');
+    if (d.over) { d.over.classList.remove('over'); move(ed.items.findIndex(x => x.key === d.key), ed.items.findIndex(x => x.key === +d.over.dataset.key)); }
+  };
+  ul.addEventListener('pointerup', end); ul.addEventListener('pointercancel', end);
+  return ed;
 }
+/* 장들을 올리고 경로 목록을 돌려줌. 만화는 긴 변 1600px(글씨가 읽히게), 한 장은 2400px */
+async function uploadPages(items, onStep){
+  const max = items.length > 1 ? 1600 : 2400, paths = [], fresh = [];
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it.path) paths.push(it.path);
+      else {
+        const c = await P.compressImage(it.file, max);
+        const p = await P.uploadImage(c.blob, c.ext, 'art');
+        paths.push(p); fresh.push(p);
+      }
+      onStep && onStep(i + 1, items.length);
+    }
+  } catch (err) { if (fresh.length) await sb.storage.from('media').remove(fresh); throw err; }
+  return { paths, fresh };
+}
+
+/* 새로 올리기 */
+const am = $('artMeta');
+am.drawn_on.value = today();
+const artEd = PageEditor($('pages'), ed => {
+  const n = ed.items.length;
+  $('artBox').hidden = !n;
+  $('artMode').textContent = n > 1 ? `만화 한 편 · ${n}장` : '그림 한 장';
+  $('artHint').textContent = n > 1 ? '끌거나 ◀ ▶로 순서 바꾸기 · ★ 표지 고르기 · ✕ 빼기' : '더 올리면 만화 한 편이 돼요';
+  $('titleHint').textContent = n > 1 ? '비워 두면 첫 장 파일 이름' : '';
+  $('upGo').textContent = n > 1 ? `만화 올리기 (${n}장)` : '그림 올리기';
+  $('upGo').disabled = !n || uploading;
+});
+function addArts(files){ artEd.add(files); }
+dropZone($('drop'), $('fileIn'), addArts);
+$('artClear').addEventListener('click', () => { if (!uploading) { artEd.clear(); $('progBar').style.width = '0'; } });
+$('upGo').addEventListener('click', async () => {
+  const items = artEd.items.slice(); if (!items.length) return;
+  const n = items.length, comic = n > 1;
+  uploading = true; $('upGo').disabled = true; $('artErr').textContent = ''; $('progBar').style.width = '0';
+  let fresh = [];
+  try {
+    const r = await uploadPages(items, (k, t) => { $('progBar').style.width = Math.round(k / t * 100) + '%'; $('upCount').textContent = `${k} / ${t}장 올리는 중…`; });
+    fresh = r.fresh;
+    const first = items[0].file ? baseName(items[0].file.name) : '';
+    const row = {
+      author: P.member.slot, kind: comic ? 'comic' : 'single', pages: r.paths, image_path: r.paths[artEd.coverIndex()],
+      title: am.title.value.trim() || (comic ? first : ''), fold_text: am.fold_text.value.trim(), caption: am.caption.value.trim(),
+      drawn_on: am.drawn_on.value || null, is_adult: am.is_adult.checked
+    };
+    const ins = await sb.from('artworks').insert(row);
+    if (ins.error) throw ins.error;
+    toast(comic ? `만화 한 편(${n}장)을 올렸어요` : '그림을 올렸어요');
+    artEd.clear(); am.reset(); am.drawn_on.value = today(); $('upCount').textContent = '';
+    loadAll();
+  } catch (err) {
+    if (fresh.length) await sb.storage.from('media').remove(fresh);
+    $('artErr').textContent = P.msg(err); $('upCount').textContent = '';
+  }
+  uploading = false; $('upGo').disabled = !artEd.items.length;
+});
 function statusText(it, limit){
   if (it.status === 'squash') return '줄이는 중…';
   if (it.status === 'bad') return '<span style="color:var(--err)">이 파일은 읽을 수 없어요</span>';
@@ -555,51 +704,6 @@ function bindRows(ul, getList, rerender){
   });
 }
 const adultBox = (id, label) => `<label class="adult mini" for="${id}"><input type="checkbox" id="${id}" data-k="is_adult"><b>${label}</b></label>`;
-function renderArts(){
-  renderRows($('files'), queue, it => {
-    const li = document.createElement('li'); li.className = 'file';
-    li.innerHTML = `<img src="${it.url}" alt="">
-      <div class="fields">
-        <div class="meta"><span class="st"></span><button class="btn sm" type="button" data-rm aria-label="이 그림 빼기">빼기</button></div>
-        <label class="sr" for="ft-${it.key}">제목</label><input class="in" id="ft-${it.key}" data-k="title" maxlength="200" placeholder="제목">
-        <label class="sr" for="fo-${it.key}">접었을 때 보이는 문구</label><input class="in" id="fo-${it.key}" data-k="fold_text" maxlength="120" placeholder="접었을 때 보이는 문구 (비우면 제목)">
-        <label class="sr" for="fc-${it.key}">한 줄 설명</label><input class="in" id="fc-${it.key}" data-k="caption" maxlength="200" placeholder="한 줄 설명">
-        <div class="two"><label class="sr" for="fd-${it.key}">날짜</label><input class="in" id="fd-${it.key}" type="date" data-k="drawn_on">${adultBox('fa-' + it.key, '성인')}</div>
-      </div>`;
-    return li;
-  }, '10MB');
-  const todo = queue.filter(i => i.status !== 'done'), ready = queue.filter(i => i.status === 'ready' || i.status === 'fail').length;
-  $('bulk').hidden = $('upBox').hidden = !queue.length;
-  $('upCount').textContent = queue.length ? `${ready}장 올릴 준비됨` + (todo.length - ready > 0 ? ` · ${todo.length - ready}장 대기/불가` : '') : '';
-  $('upGo').disabled = !ready || uploading;
-}
-bindRows($('files'), () => queue, renderArts);
-dropZone($('drop'), $('fileIn'), addArts);
-$('bulkApply').addEventListener('click', () => {
-  const d = $('bulkDate').value, a = $('bulkAdult').checked;
-  queue.forEach(it => { if (it.status === 'done' || it.status === 'up') return; if (d) it.drawn_on = d; it.is_adult = a; });
-  renderArts(); toast('모든 그림에 적용했어요');
-});
-$('bulkClear').addEventListener('click', () => { if (uploading) return; queue.forEach(i => URL.revokeObjectURL(i.url)); queue = []; renderArts(); $('progBar').style.width = '0'; });
-$('upGo').addEventListener('click', async () => {
-  const list = queue.filter(i => i.status === 'ready' || i.status === 'fail');
-  if (!list.length) return;
-  uploading = true; $('artErr').textContent = ''; let n = 0, ok = 0;
-  for (const it of list) {
-    it.status = 'up'; renderArts();
-    try {
-      const path = await P.uploadImage(it.blob, it.ext, 'art');
-      const r = await sb.from('artworks').insert({ author: P.member.slot, title: (it.title || '').trim(), fold_text: (it.fold_text || '').trim(), caption: (it.caption || '').trim(), drawn_on: it.drawn_on || null, is_adult: !!it.is_adult, image_path: path });
-      if (r.error) { await sb.storage.from('media').remove([path]); throw r.error; }
-      it.status = 'done'; ok++;
-    } catch (err) { it.status = 'fail'; it.err = P.msg(err); }
-    n++; $('progBar').style.width = Math.round(n / list.length * 100) + '%'; renderArts();
-  }
-  uploading = false; renderArts();
-  if (ok === list.length) toast(`${ok}장 올렸어요`);
-  else $('artErr').textContent = `${list.length - ok}장은 못 올렸어요. 다시 "모두 올리기"를 눌러 주세요.`;
-  loadAll();
-});
 
 /* ---------- 로그 (PDF) ---------- */
 let lqueue = [], luploading = false;
@@ -679,7 +783,7 @@ function renderManage(){
   $('artList').innerHTML = as.length ? as.map(a => `<li>
     <span class="who ${a.author}" title="${a.author.toUpperCase()} PL"></span>
     <img src="${esc(pubUrl(a.image_path))}" alt="" loading="lazy">
-    <span class="t"><b>${a.is_adult ? '<span class="badge">성인</span>' : ''}${esc(shown(a))}</b><small>${dot(a.drawn_on) || '날짜 없음'}${a.caption ? ' · ' + esc(a.caption) : ''}</small></span>
+    <span class="t"><b>${a.is_adult ? '<span class="badge">성인</span>' : ''}${a.kind === 'comic' ? `<span class="badge comic">만화 · ${pagesOf(a).length}장</span>` : ''}${esc(shown(a))}</b><small>${dot(a.drawn_on) || '날짜 없음'}${a.caption ? ' · ' + esc(a.caption) : ''}</small></span>
     ${acts('a', a.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 그림이 없어요.</li>';
   $('logList').innerHTML = ls.length ? ls.map(l => `<li>
     <span class="pdfs" aria-hidden="true">${l.pdf_path ? 'PDF' : '글'}</span>
@@ -701,10 +805,10 @@ $('v-manage').addEventListener('click', async e => {
   }
   if (b.dataset.ad) {
     const a = ARTS.find(x => x.id === +b.dataset.ad);
-    if (!confirm(`그림 「${shown(a)}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    if (!confirm(a.kind === 'comic' ? `만화 「${shown(a)}」(${pagesOf(a).length}장 전부)를 지울까요? 되돌릴 수 없어요.` : `그림 「${shown(a)}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
     const r = await sb.from('artworks').delete().eq('id', a.id);
     if (r.error) { toast(P.msg(r.error)); return; }
-    await sb.storage.from('media').remove([a.image_path]);
+    await sb.storage.from('media').remove([...new Set(pagesOf(a).concat(a.image_path ? [a.image_path] : []))]);
     await sb.from('comments').delete().eq('target_type', 'artwork').eq('target_id', a.id);
     toast('지웠어요'); loadAll(); return;
   }
@@ -723,35 +827,47 @@ function editPost(id){
   openPost(p); setTab('post'); history.replaceState(null, '', '#edit-post=' + id); window.scrollTo({ top: 0 }); pf.title.focus();
 }
 
-/* 그림 고치기 */
+/* 그림 · 만화 고치기: 장 추가 · 빼기 · 순서 · 표지 + 글자들 */
+const pagesOf = a => (a.pages && a.pages.length ? a.pages : (a.image_path ? [a.image_path] : []));
 const dlg = $('artDlg'), af = $('artForm'); let artEditing = null;
+const editEd = PageEditor($('editPages'), ed => {
+  const n = ed.items.length;
+  $('editMode').textContent = n > 1 ? `만화 한 편 · ${n}장` : n === 1 ? '그림 한 장' : '장이 없어요';
+});
 function editArt(id){
   const a = ARTS.find(x => x.id === id); if (!a) { toast('그 그림을 찾지 못했어요'); return; }
   artEditing = a;
-  $('artImg').src = pubUrl(a.image_path);
-  af.file.value = ''; af.title.value = a.title || ''; af.fold_text.value = a.fold_text || ''; af.caption.value = a.caption || '';
+  editEd.load(pagesOf(a), a.image_path);
+  $('artDlgT').textContent = a.kind === 'comic' ? '만화 고치기' : '그림 고치기';
+  af.title.value = a.title || ''; af.fold_text.value = a.fold_text || ''; af.caption.value = a.caption || '';
   af.drawn_on.value = a.drawn_on || ''; af.is_adult.checked = a.is_adult; $('artDlgErr').textContent = '';
   dlg.showModal();
 }
-af.file.addEventListener('change', () => { const f = af.file.files[0]; if (f) $('artImg').src = URL.createObjectURL(f); });
-$('artDlgCancel').addEventListener('click', () => dlg.close());
+$('editAdd').addEventListener('change', e => { editEd.add(e.target.files); e.target.value = ''; });
+$('artDlgCancel').addEventListener('click', () => { editEd.clear(true); dlg.close(); });
 af.addEventListener('submit', async e => {
   e.preventDefault();
-  const a = artEditing, btn = $('artDlgSave'); btn.disabled = true; $('artDlgErr').textContent = '';
-  const row = { title: af.title.value.trim(), fold_text: af.fold_text.value.trim(), caption: af.caption.value.trim(), drawn_on: af.drawn_on.value || null, is_adult: af.is_adult.checked };
-  let newPath = null;
+  const a = artEditing, btn = $('artDlgSave'), items = editEd.items.slice();
+  if (!items.length) { $('artDlgErr').textContent = '한 장 이상 있어야 해요. 다 지우려면 목록의 "삭제"를 눌러 주세요.'; return; }
+  btn.disabled = true; $('artDlgErr').textContent = '';
+  let fresh = [];
   try {
-    const f = af.file.files[0];
-    if (f) { const c = await P.compressImage(f); newPath = await P.uploadImage(c.blob, c.ext, 'art'); row.image_path = newPath; }
-    const r = await sb.from('artworks').update(row).eq('id', a.id);
-    if (r.error) throw r.error;
-    if (newPath) await sb.storage.from('media').remove([a.image_path]);
-    dlg.close(); toast('고쳤어요'); loadAll();
+    const r = await uploadPages(items, (k, t) => { btn.textContent = `올리는 중 ${k}/${t}`; });
+    fresh = r.fresh;
+    const row = {
+      kind: r.paths.length > 1 ? 'comic' : 'single', pages: r.paths, image_path: r.paths[editEd.coverIndex()],
+      title: af.title.value.trim(), fold_text: af.fold_text.value.trim(), caption: af.caption.value.trim(), drawn_on: af.drawn_on.value || null, is_adult: af.is_adult.checked
+    };
+    const u = await sb.from('artworks').update(row).eq('id', a.id);
+    if (u.error) throw u.error;
+    const gone = [...new Set(pagesOf(a).concat(a.image_path ? [a.image_path] : []))].filter(p => !r.paths.includes(p));   /* 뺀 장은 저장소에서도 지움 */
+    if (gone.length) await sb.storage.from('media').remove(gone);
+    editEd.clear(true); dlg.close(); toast('고쳤어요'); loadAll();
   } catch (err) {
-    if (newPath) await sb.storage.from('media').remove([newPath]);
+    if (fresh.length) await sb.storage.from('media').remove(fresh);
     $('artDlgErr').textContent = P.msg(err);
   }
-  btn.disabled = false;
+  btn.disabled = false; btn.textContent = '저장';
 });
 
 /* 로그 고치기 */
