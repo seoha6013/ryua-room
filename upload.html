@@ -183,7 +183,7 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
         <form class="f" id="postForm" novalidate>
           <div class="editing" id="editingBar" hidden><span id="editingTxt"></span><button class="btn sm" type="button" id="stopEdit">새 글 쓰기로</button></div>
           <div class="draft" id="draftBar" hidden><span id="draftTxt">임시저장해 둔 내용을 불러왔어요.</span><button class="btn sm" type="button" id="dropDraft">버리고 새로 쓰기</button></div>
-          <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인 글</b><small>체크하면 비밀 서랍(성인 비번)으로 들어가요. 내 글·네 글 서랍에는 안 보여요.</small></span></label>
+          <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인 글</b><small>체크하면 비밀 서랍(성인 비번)으로 들어가요. HO1 글·HO2 글 서랍에는 안 보여요.</small></span></label>
           <div class="drawer-info" id="drawerInfo"><span>서랍</span><b id="drawerName"></b><small style="color:var(--ink3)">로그인한 사람 기준으로 자동</small></div>
           <label>제목<input name="title" maxlength="200" required autocomplete="off"></label>
           <label>접었을 때 보이는 문구 <small>비워 두면 제목이 보여요</small><input name="fold_text" maxlength="120" autocomplete="off" placeholder="예: 출발 전날 밤, 둘이 나눈 이야기"></label>
@@ -317,7 +317,7 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
 {
 const P = window.PUBAM, sb = P.sb, esc = P.esc;
 const $ = id => document.getElementById(id);
-const DRAWER = { ho1: '내 글 (HO1 PL)', ho2: '네 글 (HO2 PL)', secret: '비밀 서랍 (성인)' };
+const DRAWER = { ho1: 'HO1 글', ho2: 'HO2 글', secret: '비밀 서랍 (성인)' };
 const pad = n => String(n).padStart(2, '0');
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const dot = s => (s || '').replace(/-/g, '.');
@@ -374,7 +374,7 @@ function fillForm(o){
 function blank(){ return { title: '', fold_text: '', folder_id: '', written_on: today(), kind: '단문', head: '', tags: '', body: '', is_adult: false }; }
 function fromPost(p){ return { title: p.title, fold_text: p.fold_text || '', folder_id: p.folder_id || '', written_on: p.written_on || '', kind: p.kind, head: p.head || '', tags: (p.tags || []).join(', '), body: p.body, is_adult: p.is_adult }; }
 function same(a, b){ return FIELDS.every(k => String(a[k] == null ? '' : a[k]) === String(b[k] == null ? '' : b[k])); }
-/* 폴더 고르기: 지금 서랍(내 글/네 글/비밀)의 폴더만 */
+/* 폴더 고르기: 지금 서랍(HO1 글/HO2 글/비밀)의 폴더만 */
 function fillFolders(){
   if (!P.member) return;
   const keep = pf.folder_id.value, d = curDrawer();

@@ -190,8 +190,8 @@ body.pl .pl-only{align-items:center}
 
 <main class="wrap">
   <nav class="tabs" role="tablist" aria-label="서랍">
-    <button class="tab" role="tab" id="t-mine" data-tab="mine" style="--d:var(--blush)"><span class="knob" aria-hidden="true"></span>내 글<small>HO1 PL</small></button>
-    <button class="tab" role="tab" id="t-yours" data-tab="yours" style="--d:var(--lav)"><span class="knob" aria-hidden="true"></span>네 글<small>HO2 PL</small></button>
+    <button class="tab" role="tab" id="t-mine" data-tab="mine" style="--d:var(--blush)"><span class="knob" aria-hidden="true"></span>HO1 글</button>
+    <button class="tab" role="tab" id="t-yours" data-tab="yours" style="--d:var(--lav)"><span class="knob" aria-hidden="true"></span>HO2 글</button>
     <button class="tab" role="tab" id="t-secret" data-tab="secret" style="--d:#fff"><span class="knob" aria-hidden="true"></span>비밀 서랍<small>성인</small></button>
     <button class="tab" role="tab" id="t-log" data-tab="log" style="--d:var(--blush)"><span class="knob" aria-hidden="true"></span>수정기록</button>
   </nav>
@@ -288,7 +288,7 @@ function postHTML(p){
   </details>`;
 }
 
-/* ---------- 폴더: 서랍(내 글 ho1 / 네 글 ho2 / 비밀 secret) 안에서 글을 묶음 ----------
+/* ---------- 폴더: 서랍(HO1 글 ho1 / HO2 글 ho2 / 비밀 secret) 안에서 글을 묶음 ----------
    folders 표(kind='post'). 그림도 kind='art'로 같은 구조를 쓸 수 있게 만들어 둠 */
 const drawerOf = p => p.is_adult ? 'secret' : p.author;
 const foldersOf = d => FOLDERS.filter(f => f.kind === 'post' && f.drawer === d).sort((a, b) => a.sort - b.sort || a.id - b.id);
@@ -497,7 +497,7 @@ const tabDrawer = () => tab === 'mine' ? 'ho1' : tab === 'yours' ? 'ho2' : tab =
 async function done(res, msg){ if (res && res.error) { toast(P.msg(res.error)); return false; } if (msg) toast(msg); await loadAll(); return true; }
 document.getElementById('newFolder').addEventListener('click', async () => {
   const d = tabDrawer(); if (!d) return;
-  const name = (prompt(`새 폴더 이름 (${d === 'secret' ? '비밀 서랍' : d === 'ho1' ? '내 글' : '네 글'})`) || '').trim();
+  const name = (prompt(`새 폴더 이름 (${d === 'secret' ? '비밀 서랍' : d === 'ho1' ? 'HO1 글' : 'HO2 글'})`) || '').trim();
   if (!name) return;
   const sort = Math.max(0, ...foldersOf(d).map(f => f.sort)) + 1;
   await done(await sb.from('folders').insert({ kind: 'post', drawer: d, name: name.slice(0, 40), sort }), `폴더 「${name}」을 만들었어요`);
