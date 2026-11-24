@@ -149,6 +149,17 @@ https://www.tooplate.com/view/2171-spatial-diorama
       var t = this.ctx.currentTime + 0.3, self = this;
       [2093, 2349.32, 2637.02, 3135.96].forEach(function(f, i){ self.bell(f, t + i * 0.09, 0.05, 0.6); });
     },
+    /* 펑: 짧은 잡음이 낮게 꺼지는 소리 (쿠키가 탈 때) */
+    poof: function(){
+      if (!this.live()) return;
+      var c = this.ctx, t = c.currentTime + 0.01, len = Math.floor(c.sampleRate * 0.5), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+      for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+      var src = c.createBufferSource(), lp = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = buf; lp.type = 'lowpass'; lp.frequency.setValueAtTime(1800, t); lp.frequency.exponentialRampToValueAtTime(140, t + 0.45);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      src.connect(lp); lp.connect(g); g.connect(this.voice(0.25)); src.start(t); src.stop(t + 0.55);
+      this.bar(196, t + 0.02, 0.12, 0.2);
+    },
     back: function(){
       if (!this.live()) return;
       var t = this.ctx.currentTime + 0.01;

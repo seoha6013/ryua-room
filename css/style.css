@@ -570,3 +570,5 @@ fieldset.field{border:0;margin:0;padding:0}
 }
 /* 메뉴 5개: 이름이 한 글자씩 꺾이지 않게 */
 .dock__btn{white-space:nowrap}
+.hotspot[data-hotspot="kitchen"]{--hs:#FFE3C2}
+.hotspot[data-hotspot="kitchen"] .hotspot__key{font-size:14px}
