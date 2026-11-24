@@ -232,11 +232,11 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
     <!-- ===== 그림 올리기 ===== -->
     <section id="v-art" role="tabpanel" aria-labelledby="t-art" hidden>
       <div class="card">
-        <h2>그림 · 만화 올리기</h2>
-        <p class="sub">한 장을 올리면 <b>그림 한 장</b>, 여러 장을 한꺼번에 올리면 <b>만화 한 편</b>(옆으로 넘겨 보기)이 돼요. 파일 이름 순서(1, 2, 10…)대로 줄을 세워요.</p>
+        <h2>그림 올리기</h2>
+        <p class="sub">한 장을 올리면 <b>그림 한 장</b>, 여러 장을 한꺼번에 올리면 <b>한 묶음</b>으로 올라가서 옆으로 넘겨 볼 수 있어요. 파일 이름 순서(1, 2, 10…)대로 줄을 세워요.</p>
         <label class="drop" id="drop" tabindex="0">
           <b>여기로 그림을 끌어다 놓기</b>
-          <span>또는 눌러서 고르기 · 여러 장 = 만화 한 편 · PNG, JPG, WebP, GIF</span>
+          <span>또는 눌러서 고르기 · 여러 장 = 한 묶음 · PNG, JPG, WebP, GIF</span>
           <input type="file" id="fileIn" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="sr">
         </label>
         <div id="artBox" hidden>
@@ -633,10 +633,10 @@ am.drawn_on.value = today();
 const artEd = PageEditor($('pages'), ed => {
   const n = ed.items.length;
   $('artBox').hidden = !n;
-  $('artMode').textContent = n > 1 ? `만화 한 편 · ${n}장` : '그림 한 장';
-  $('artHint').textContent = n > 1 ? '끌거나 ◀ ▶로 순서 바꾸기 · ★ 표지 고르기 · ✕ 빼기' : '더 올리면 만화 한 편이 돼요';
+  $('artMode').textContent = n > 1 ? `${n}장 묶음` : '그림 한 장';
+  $('artHint').textContent = n > 1 ? '끌거나 ◀ ▶로 순서 바꾸기 · ★ 표지 고르기 · ✕ 빼기' : '더 올리면 여러 장이 한 묶음이 돼요';
   $('titleHint').textContent = n > 1 ? '비워 두면 첫 장 파일 이름' : '';
-  $('upGo').textContent = n > 1 ? `만화 올리기 (${n}장)` : '그림 올리기';
+  $('upGo').textContent = n > 1 ? `올리기 (${n}장 묶음)` : '그림 올리기';
   $('upGo').disabled = !n || uploading;
 });
 function addArts(files){ artEd.add(files); }
@@ -658,7 +658,7 @@ $('upGo').addEventListener('click', async () => {
     };
     const ins = await sb.from('artworks').insert(row);
     if (ins.error) throw ins.error;
-    toast(comic ? `만화 한 편(${n}장)을 올렸어요` : '그림을 올렸어요');
+    toast(comic ? `${n}장 묶음을 올렸어요` : '그림을 올렸어요');
     artEd.clear(); am.reset(); am.drawn_on.value = today(); $('upCount').textContent = '';
     loadAll();
   } catch (err) {
@@ -785,7 +785,7 @@ function renderManage(){
   $('artList').innerHTML = as.length ? as.map(a => `<li>
     <span class="who ${a.author}" title="${a.author.toUpperCase()} PL"></span>
     <img src="${esc(pubUrl(a.image_path))}" alt="" loading="lazy">
-    <span class="t"><b>${a.is_adult ? '<span class="badge">성인</span>' : ''}${a.kind === 'comic' ? `<span class="badge comic">만화 · ${pagesOf(a).length}장</span>` : ''}${esc(shown(a))}</b><small>${dot(a.drawn_on) || '날짜 없음'}${a.caption ? ' · ' + esc(a.caption) : ''}</small></span>
+    <span class="t"><b>${a.is_adult ? '<span class="badge">성인</span>' : ''}${a.kind === 'comic' ? `<span class="badge comic">${pagesOf(a).length}장</span>` : ''}${esc(shown(a))}</b><small>${dot(a.drawn_on) || '날짜 없음'}${a.caption ? ' · ' + esc(a.caption) : ''}</small></span>
     ${acts('a', a.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 그림이 없어요.</li>';
   $('logList').innerHTML = ls.length ? ls.map(l => `<li>
     <span class="pdfs" aria-hidden="true">${l.pdf_path ? 'PDF' : '글'}</span>
@@ -807,7 +807,7 @@ $('v-manage').addEventListener('click', async e => {
   }
   if (b.dataset.ad) {
     const a = ARTS.find(x => x.id === +b.dataset.ad);
-    if (!confirm(a.kind === 'comic' ? `만화 「${shown(a)}」(${pagesOf(a).length}장 전부)를 지울까요? 되돌릴 수 없어요.` : `그림 「${shown(a)}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    if (!confirm(a.kind === 'comic' ? `「${shown(a)}」(${pagesOf(a).length}장 전부)을(를) 지울까요? 되돌릴 수 없어요.` : `그림 「${shown(a)}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
     const r = await sb.from('artworks').delete().eq('id', a.id);
     if (r.error) { toast(P.msg(r.error)); return; }
     await sb.storage.from('media').remove([...new Set(pagesOf(a).concat(a.image_path ? [a.image_path] : []))]);
@@ -834,13 +834,13 @@ const pagesOf = a => (a.pages && a.pages.length ? a.pages : (a.image_path ? [a.i
 const dlg = $('artDlg'), af = $('artForm'); let artEditing = null;
 const editEd = PageEditor($('editPages'), ed => {
   const n = ed.items.length;
-  $('editMode').textContent = n > 1 ? `만화 한 편 · ${n}장` : n === 1 ? '그림 한 장' : '장이 없어요';
+  $('editMode').textContent = n > 1 ? `${n}장 묶음` : n === 1 ? '그림 한 장' : '장이 없어요';
 });
 function editArt(id){
   const a = ARTS.find(x => x.id === id); if (!a) { toast('그 그림을 찾지 못했어요'); return; }
   artEditing = a;
   editEd.load(pagesOf(a), a.image_path);
-  $('artDlgT').textContent = a.kind === 'comic' ? '만화 고치기' : '그림 고치기';
+  $('artDlgT').textContent = '그림 고치기';
   af.title.value = a.title || ''; af.fold_text.value = a.fold_text || ''; af.caption.value = a.caption || '';
   af.drawn_on.value = a.drawn_on || ''; af.is_adult.checked = a.is_adult; $('artDlgErr').textContent = '';
   dlg.showModal();

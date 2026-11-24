@@ -99,8 +99,8 @@
     var who = tab === 'adult' ? '<span class="ag-who">' + a.author.toUpperCase() + '</span>' : '';
     /* 만화: 표지 한 칸. 누르면 카드뉴스 보기 화면 */
     if (isComic(a)) {
-      return '<div class="ag-art" id="ag-' + a.id + '" data-id="' + a.id + '"><button type="button" class="ag-comic" data-comic="' + a.id + '" aria-label="만화 보기: ' + esc(a.fold_text || a.title || '제목 없음') + ', ' + pagesOf(a).length + '장">' +
-        '<span class="ag-cover"><img src="' + esc(url(a.image_path)) + '" crossorigin="anonymous" alt="" loading="lazy"><i class="ag-badge">만화 · ' + pagesOf(a).length + '장</i></span>' +
+      return '<div class="ag-art" id="ag-' + a.id + '" data-id="' + a.id + '"><button type="button" class="ag-comic" data-comic="' + a.id + '" aria-label="그림 보기: ' + esc(a.fold_text || a.title || '제목 없음') + ', ' + pagesOf(a).length + '장">' +
+        '<span class="ag-cover"><img src="' + esc(url(a.image_path)) + '" crossorigin="anonymous" alt="" loading="lazy"><i class="ag-badge">' + pagesOf(a).length + '장</i></span>' +
         '<b>' + who + esc(a.fold_text || a.title || '제목 없음') + '</b>' +
         '<small>' + dayOf(a).replace(/-/g, '.') + ' · 댓글 ' + c.length + ' · 눌러서 넘겨 보기</small></button></div>';
     }
@@ -334,12 +334,12 @@
         return '<button type="button" data-cvr="' + e + '" aria-pressed="' + !!mineR['artwork:' + a.id + ':' + e] + '">' + e + ' <span>' + (V.react[e] || 0) + '</span></button>';
       }).join('') + '</div>' +
       commentsHTML(a) +
-      '<div class="ag-pl"><a class="ag-sm" href="upload.html#edit-art=' + a.id + '">수정</a><button class="ag-sm" type="button" data-adel="' + a.id + '">만화 삭제</button></div>';
+      '<div class="ag-pl"><a class="ag-sm" href="upload.html#edit-art=' + a.id + '">수정</a><button class="ag-sm" type="button" data-adel="' + a.id + '">삭제</button></div>';
   }
   function openComic(a){
     var pages = pagesOf(a);
     V.art = a; V.n = pages.length; V.i = 0; V.back = document.activeElement; V.react = {};
-    q('cvTitle').textContent = a.fold_text || a.title || '만화';
+    q('cvTitle').textContent = a.fold_text || a.title || '그림';
     q('cvTrack').innerHTML = pages.map(function(p, i){
       return '<div class="cv-slide" data-i="' + i + '"><img data-src="' + esc(url(p)) + '" alt="' + (i + 1) + ' / ' + pages.length + '쪽" draggable="false"></div>';
     }).join('') + '<div class="cv-slide cv-end"><p>마지막 장이에요</p><button type="button" data-first>처음으로</button></div>';
@@ -464,7 +464,7 @@
     if (ad) {
       var a = all().find(function(x){ return x.id === +ad.dataset.adel; });
       var pg = pagesOf(a);
-      if (!confirm(isComic(a) ? '만화 「' + (a.title || '제목 없음') + '」(' + pg.length + '장 전부)를 지울까요? 되돌릴 수 없어요.' : '그림 「' + (a.title || '제목 없음') + '」을(를) 지울까요? 되돌릴 수 없어요.')) return;
+      if (!confirm(isComic(a) ? '「' + (a.title || '제목 없음') + '」(' + pg.length + '장 전부)을(를) 지울까요? 되돌릴 수 없어요.' : '그림 「' + (a.title || '제목 없음') + '」을(를) 지울까요? 되돌릴 수 없어요.')) return;
       var d = await P.sb.from('artworks').delete().eq('id', a.id);
       if (d.error) { alert(P.msg(d.error)); return; }
       await P.sb.storage.from('media').remove(pg.concat(pg.indexOf(a.image_path) < 0 && a.image_path ? [a.image_path] : []));
