@@ -39,8 +39,9 @@
     '.lg-caps img{width:100%;height:100%;object-fit:cover;display:block}' +
     '.lg-open{display:inline-flex;align-items:center;gap:6px;margin:10px 0 8px;font:800 14px Nunito,"Gowun Dodum",sans-serif;color:#5565AA}' +
     /* PDF: 페이지를 위아래로 이어서 */
-    '.lg-pdf{display:flex;flex-direction:column;gap:8px;margin:6px -4px 0}' +
-    '.lg-page{width:100%;aspect-ratio:1/1.414;background:#fff;border:1px solid #E3DFEC;border-radius:6px;overflow:hidden;position:relative}' +
+    '.lg-pdf{display:flex;flex-direction:column;gap:0;margin:6px -4px 0}' +
+    '.lg-page{width:100%;aspect-ratio:1/1.414;background:#fff;overflow:hidden;position:relative;border:0;border-radius:0}' +   /* 장끼리 틈 없이 */
+    '.lg-pdf .lg-page:first-of-type{border-radius:6px 6px 0 0}.lg-pdf .lg-page:last-child{border-radius:0 0 6px 6px}' +
     '.lg-page::before{content:attr(data-n);position:absolute;inset:0;display:grid;place-items:center;font:800 13px Nunito,sans-serif;color:#C9C4D6}' +
     '.lg-page canvas{display:block;width:100%;height:auto;position:relative}' +
     '.panel p.lg-pdfmsg{margin:4px 0;font-size:13px;color:var(--ink-3)}' +
@@ -73,8 +74,8 @@
     '.lgfs-x{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid #1F1B24;background:#fff;box-shadow:0 2px 0 #1F1B24;font:900 15px Nunito,"Gowun Dodum",sans-serif;cursor:pointer;white-space:nowrap}' +
     '.lgfs-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:12px 0 40px}' +
     '.lgfs-scroll:focus{outline:none}' +
-    '.lgfs-pages{display:flex;flex-direction:column;gap:10px;margin:0 auto;width:calc(min(100% - 16px, 900px) * var(--z,1))}' +
-    '.lgfs-pages .lg-page{border-radius:4px;box-shadow:0 2px 10px -4px rgba(31,27,36,.3)}' +
+    '.lgfs-pages{display:flex;flex-direction:column;gap:0;margin:0 auto;width:calc(min(100% - 16px, 900px) * var(--z,1));box-shadow:0 2px 14px -4px rgba(31,27,36,.3)}' +
+    '.lgfs-pages .lg-page{border-radius:0}' +
     '@media (max-width:600px){.lgfs-top{flex-wrap:wrap;gap:6px}.lgfs-top b{flex-basis:calc(100% - 120px);font-size:14px}.lgfs-x{min-height:52px;padding:0 20px;font-size:17px}.lgfs-z button{width:44px;height:44px}}' +
     '.lg-tv{margin-top:14px;padding:12px 14px;border-radius:16px;background:var(--lav-fill);flex-wrap:wrap;align-items:center;gap:8px}' +
     '.panel .lg-tv p{font-size:13px;margin:0;flex:1 1 100%}';
@@ -144,6 +145,40 @@
     if (!pdfLib) pdfLib = import(PDFJS + 'build/pdf.min.mjs').then(function(m){ m.GlobalWorkerOptions.workerSrc = PDFJS + 'build/pdf.worker.min.mjs'; return m; });
     return pdfLib;
   }
+  /* 그린 장의 위아래 하얀 여백을 찾아 잘라낸 새 캔버스 (내용이 없으면 그대로) */
+  /* st: 문서 하나에서 같이 쓰는 값. 좌우는 모든 장을 같은 비율로 잘라야 글자 크기가 장마다 안 달라짐 */
+  function trimWhite(c, st){
+    try {
+      var w = c.width, h = c.height, d = c.getContext('2d').getImageData(0, 0, w, h).data, stepX = Math.max(1, Math.floor(w / 400)), stepY = Math.max(1, Math.floor(h / 400));
+      var ink = function(i){ return d[i] < 245 || d[i + 1] < 245 || d[i + 2] < 245; };
+      var blank = function(y){
+        for (var x = 0; x < w; x += stepX) if (ink((y * w + x) * 4)) return false;
+        return true;
+      };
+      var blankCol = function(x){
+        for (var y = 0; y < h; y += stepY) if (ink((y * w + x) * 4)) return false;
+        return true;
+      };
+      var top = 0, bot = h - 1;
+      while (top < h && blank(top)) top++;
+      if (top >= h) return c;                               /* 빈 장 */
+      while (bot > top && blank(bot)) bot--;
+      var lft = 0, rgt = w - 1;
+      while (lft < w && blankCol(lft)) lft++;
+      while (rgt > lft && blankCol(rgt)) rgt--;
+      /* 좌우: 이 장의 양쪽 여백 중 작은 쪽, 그리고 앞서 본 장들보다 많이는 안 자름 */
+      var side = Math.max(0, Math.min(lft, w - 1 - rgt) / w - 0.012);
+      st = st || {};
+      st.side = st.side == null ? side : Math.min(st.side, side);
+      var cut = Math.min(side, st.side), x0 = Math.round(w * cut), cw = w - x0 * 2;
+      var pad = Math.round(h * 0.006), y0 = Math.max(0, top - pad), y1 = Math.min(h, bot + 1 + pad);
+      if (y1 - y0 > h * 0.98 && cw > w * 0.98) return c;   /* 거의 안 잘리면 그대로 */
+      var o = document.createElement('canvas'); o.width = cw; o.height = y1 - y0;
+      o.getContext('2d').drawImage(c, x0, y0, cw, y1 - y0, 0, 0, cw, y1 - y0);
+      c.width = 0; c.height = 0;
+      return o;
+    } catch (e) { return c; }
+  }
   async function showPdf(box, opt){
     opt = opt || {};
     if (box.dataset.state) return;
@@ -159,18 +194,26 @@
         var d = document.createElement('div'); d.className = 'lg-page'; d.dataset.n = i;
         d.style.aspectRatio = vp1.width + ' / ' + vp1.height; box.appendChild(d); pages.push(d);
       }
-      var root = opt.root || box.closest('.panel') || null;
+      var root = opt.root || box.closest('.panel') || null, trimSt = {};
       var draw = async function(el){
         if (el._c || el._busy) return;
         el._busy = true;
         try {
           var page = await doc.getPage(+el.dataset.n), vp0 = page.getViewport({ scale: 1 });
-          el.style.aspectRatio = vp0.width + ' / ' + vp0.height;
+          if (!el._trimmed) el.style.aspectRatio = vp0.width + ' / ' + vp0.height;
           var dpr = Math.min(window.devicePixelRatio || 1, 2), w = el.clientWidth || box.clientWidth || 360;   /* 화면 폭에 맞춤 */
-          var vp = page.getViewport({ scale: w * dpr / vp0.width });
+          var vp = page.getViewport({ scale: w * dpr / vp0.width / (1 - 2 * (trimSt.side || 0)) });   /* 좌우를 자를 만큼 크게 그려서 선명하게 */
           var c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
           await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-          if (el._want) { el.appendChild(c); el._c = c; }
+          c = trimWhite(c, trimSt);                               /* 위아래 하얀 여백 잘라서 장끼리 딱 붙게 */
+          if (el._want) {
+            /* 높이가 바뀌면 화면 위쪽 장일 때 스크롤이 튀지 않게 보정 */
+            var sc = root || document.scrollingElement, before = el.getBoundingClientRect(), topEdge = root ? root.getBoundingClientRect().top : 0;
+            el.style.aspectRatio = c.width + ' / ' + c.height;
+            var diff = el.getBoundingClientRect().height - before.height;
+            if (diff && before.bottom <= topEdge + 1 && sc) sc.scrollTop += diff;
+            el.appendChild(c); el._c = c; el._trimmed = true;   /* 다시 그릴 때도 잘린 높이 유지 */
+          }
         } catch (e) { console.warn(e); }
         el._busy = false;
       };
