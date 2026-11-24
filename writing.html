@@ -24,7 +24,15 @@ LAYOUT  가운데 860px 한 단. 폰에서는 탭이 가로로 스크롤, 요약
   --line:#D9D5E3; --r:20px;
 }
 *{box-sizing:border-box;min-width:0}
-html{scroll-padding-top:90px}
+html{scroll-padding-top:calc(var(--toph,74px) + 12px)}
+/* 펼친 글 접기: 읽는 동안 위에 붙어 다니는 '접기' + 글 끝의 '이 글 접기' */
+.fold-bar{position:sticky;top:calc(var(--toph,74px) + 8px);z-index:5;height:0;display:flex;justify-content:flex-end;padding-right:12px;pointer-events:none}
+.fold-bar button{pointer-events:auto;transform:translateY(8px);min-height:40px;padding:0 14px;border-radius:999px;border:1.5px solid var(--ink);background:rgba(255,255,255,.94);box-shadow:0 3px 0 var(--ink);font-weight:800;font-size:13px;cursor:pointer}
+.fold-bar button:active{transform:translateY(10px);box-shadow:0 1px 0 var(--ink)}
+.fold-end{display:block;margin:2px auto 14px;min-height:44px;padding:0 20px;border-radius:999px;border:1.5px solid var(--line);background:var(--sky2);font-weight:800;font-size:14px;cursor:pointer}
+.fold-end:hover{border-color:var(--ink)}
+.post[open] .pbody{padding-right:84px}
+@media (max-width:600px){.post[open] .pbody{padding-right:12px;padding-top:44px}}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 'Nunito','Gowun Dodum',system-ui,sans-serif;overflow-x:clip;-webkit-font-smoothing:antialiased}
 a{color:var(--ho2)}
 button,input,textarea{font:inherit;color:inherit}
@@ -266,6 +274,7 @@ function postHTML(p){
       <span class="pmeta">${p.written_on ? p.written_on.replace(/-/g, '.') : day(p.created_at)}${edited ? ' (고침)' : ''} · ${esc(p.kind)} · 댓글 ${c.length}</span>
       <span class="ptags">${(p.tags || []).map(t => `<span>#${esc(t)}</span>`).join('')}</span>
     </summary>
+    <div class="fold-bar"><button type="button" data-fold="${p.id}" aria-label="이 글 접기">접기 ▲</button></div>
     <div class="pbody">${p.fold_text ? `<h3 class="pt-in">${esc(p.title)}</h3>` : ''}${paras(p.body).map(t => `<p>${esc(t)}</p>`).join('') || '<p></p>'}</div>
     <div class="react" role="group" aria-label="반응">${REACTS.map(e => {
       const on = !!mine['post:' + p.id + ':' + e];
@@ -285,6 +294,7 @@ function postHTML(p){
       <label class="move">폴더 옮기기 <select data-move="${p.id}">${moveOptions(p)}</select></label>
       ${manualIn(p) ? `<button class="chip-btn" type="button" data-pup="${p.id}" aria-label="위로">↑</button><button class="chip-btn" type="button" data-pdown="${p.id}" aria-label="아래로">↓</button>` : ''}
     </div>
+    <button class="fold-end" type="button" data-fold="${p.id}">▲ 이 글 접기</button>
   </details>`;
 }
 
@@ -467,6 +477,16 @@ view.addEventListener('click', async e => {
     if (el) { const g = el.closest('.group'); if (g) { g.open = true; openState.add(g.id); } el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     return;
   }
+  /* 글 접기: 접고 나서 그 글 제목이 화면 위에 오게 */
+  const fd = e.target.closest('[data-fold]');
+  if (fd) {
+    const d = document.getElementById('p-' + fd.dataset.fold); if (!d) return;
+    d.open = false;
+    const top = d.getBoundingClientRect().top, head = document.querySelector('.top').offsetHeight;
+    if (top < head || top > window.innerHeight) d.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    d.querySelector('summary').focus({ preventScroll: true });
+    return;
+  }
   const ed = e.target.closest('[data-edit]');
   if (ed) { location.href = 'upload.html#edit-post=' + ed.dataset.edit; return; }
   /* 폴더 관리 (PL) */
@@ -568,6 +588,10 @@ P.onAuth(() => {
 
 let tt = 0;
 function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2400); }
+
+/* 위쪽 고정 머리 높이 (폰에선 두 줄) → 접기 버튼이 그 바로 아래 붙음 */
+const setTopH = () => document.documentElement.style.setProperty('--toph', document.querySelector('.top').offsetHeight + 'px');
+setTopH(); window.addEventListener('resize', setTopH);
 
 /* 주소 끝 #mine #yours #secret #log 로 서랍을 바로 열 수 있음 */
 function fromHash(){ const h = location.hash.slice(1); tab = ['mine', 'yours', 'secret', 'log'].includes(h) ? h : 'mine'; render(); }

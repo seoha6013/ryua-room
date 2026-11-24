@@ -190,10 +190,10 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
           <div class="grid3">
             <label>폴더 <small>서랍 안에서 묶는 곳</small><select name="folder_id" id="folderSel"></select></label>
             <label>날짜<input name="written_on" type="date"></label>
-            <label>종류<input name="kind" list="kinds" maxlength="20" placeholder="단문"></label>
+            <label>종류 <small>없으면 "+ 직접 추가"</small><select name="kind"><option>단문</option></select></label>
           </div>
           <div class="grid2">
-            <label>말머리<select name="head"><option value="">없음</option><option>IF</option><option>AU</option></select></label>
+            <label>말머리 <small>없으면 "+ 직접 추가"</small><select name="head"><option value="">없음</option></select></label>
             <label>태그 <small>쉼표로 나눠요</small><input name="tags" placeholder="출발전, 일상" autocomplete="off"></label>
           </div>
           <label>본문 <small>빈 줄로 문단을 나눠요</small><textarea name="body" rows="14"></textarea></label>
@@ -307,7 +307,6 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
   </form>
 </dialog>
 
-<datalist id="kinds"><option>단문</option><option>썰</option><option>메모</option><option>중편</option><option>장편</option><option>후기</option></datalist>
 <datalist id="scList"></datalist>
 <div class="toast" id="toast" role="status"></div>
 
@@ -350,6 +349,7 @@ async function loadAll(){
   const e = ps.error || as.error || ls.error || fs.error;
   if (e) { toast(P.msg(e)); return; }
   POSTS = ps.data; ARTS = as.data; LOGS = ls.data; FOLDERS = fs.data;
+  fillChoices();
   $('scList').innerHTML = [...new Set(LOGS.map(l => l.scenario))].map(n => `<option value="${esc(n)}">`).join('');
   fillFolders();
   if (tab === 'manage') renderManage();
@@ -365,8 +365,36 @@ let editing = null, draftTimer = 0;
 const draftKey = () => `pubam-draft:${P.user.id}:${editing ? editing.id : 'new'}`;
 const curDrawer = () => pf.is_adult.checked ? 'secret' : (editing ? editing.author : P.member.slot);
 function formData(){ const o = {}; FIELDS.forEach(k => o[k] = k === 'is_adult' ? pf[k].checked : pf[k].value); return o; }
+/* 말머리·종류: 기본 목록 + 지금까지 글에 쓴 것 + '직접 추가' */
+const HEAD_BASE = ['IF', 'AU'], KIND_BASE = ['단문', '썰', '메모', '중편', '장편', '후기'];
+const ADD = '__add';
+function ensureOpt(sel, v){
+  if (!v || [...sel.options].some(o => o.value === v)) return;
+  const add = [...sel.options].find(o => o.value === ADD);
+  sel.insertBefore(new Option(v, v), add || null);
+}
+function fillChoices(){
+  [[pf.head, HEAD_BASE, 'head', '없음'], [pf.kind, KIND_BASE, 'kind', null]].forEach(([sel, base, k, empty]) => {
+    const keep = sel.value;
+    const vals = [...new Set(base.concat(POSTS.map(p => p[k])).filter(v => v && v !== ADD))];
+    sel.innerHTML = (empty ? `<option value="">${empty}</option>` : '') + vals.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('') + `<option value="${ADD}">+ 직접 추가…</option>`;
+    ensureOpt(sel, keep); sel.value = keep && keep !== ADD ? keep : (empty ? '' : '단문');
+  });
+}
+[[pf.head, '새 말머리 (예: 현대AU, 커플링)', 12, ''], [pf.kind, '새 종류 (예: 낙서글, 연성 메모)', 20, '단문']].forEach(([sel, ask, max, fallback]) => {
+  let prev = sel.value;
+  sel.addEventListener('focus', () => { prev = sel.value; });
+  sel.addEventListener('change', () => {
+    if (sel.value !== ADD) { prev = sel.value; return; }
+    const v = (prompt(ask) || '').trim().slice(0, max);
+    if (!v) { sel.value = prev || fallback; return; }
+    ensureOpt(sel, v); sel.value = v; prev = v;
+    pf.dispatchEvent(new Event('input'));   /* 임시저장에도 반영 */
+  });
+});
 function fillForm(o){
   pf.is_adult.checked = !!o.is_adult; fillFolders();
+  ensureOpt(pf.head, o.head); ensureOpt(pf.kind, o.kind);
   FIELDS.forEach(k => { if (k !== 'is_adult') pf[k].value = o[k] == null ? '' : o[k]; });
   if (pf.folder_id.value !== String(o.folder_id || '')) pf.folder_id.value = '';
   syncDrawer();
@@ -437,7 +465,7 @@ pf.addEventListener('submit', async e => {
   const fid = o.folder_id && o.folder_id !== '__new' ? +o.folder_id : null;
   const row = {
     title: o.title.trim(), fold_text: o.fold_text.trim(), folder_id: fid, written_on: o.written_on || null,
-    kind: o.kind.trim() || '단문', head: o.head || null,
+    kind: (o.kind !== ADD && o.kind.trim()) || '단문', head: (o.head !== ADD && o.head) || null,
     tags: o.tags.split(/[,，]/).map(t => t.trim().replace(/^#/, '')).filter(Boolean),
     body: o.body.replace(/\r/g, ''), is_adult: o.is_adult
   };
