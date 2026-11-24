@@ -209,9 +209,10 @@
     '.cv-track::-webkit-scrollbar{display:none}' +
     /* 한 장이 화면 안에 통째로 보이게: 장 칸 = 보기 칸 크기, 그림은 비율 그대로 그 안에 맞춤 */
     '.cv-slide{flex:0 0 100%;width:100%;height:var(--cvh);box-sizing:border-box;padding:8px;scroll-snap-align:center;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}' +
-    '.cv-slide img{width:auto;height:auto;max-width:100%;max-height:calc(var(--cvh) - 16px);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;background:#fff;box-shadow:0 2px 14px -6px rgba(31,27,36,.35)}' +
+    '.cv-slide img{width:auto;height:auto;max-width:100%;max-height:calc(var(--cvh) - 16px);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;background:#fff;outline:1px solid #D9D5E3;box-shadow:0 2px 14px -6px rgba(31,27,36,.35)}' +   /* 얇은 테두리 = 원본 그림의 끝 */
     '.cv-slide.zoom{display:block;overflow:auto;touch-action:pan-x pan-y}' +
-    '.cv-slide.zoom img{max-width:none;max-height:none;width:200%;cursor:zoom-out}' +
+    '.cv-slide.zoom img{max-width:none!important;max-height:none!important;width:200%!important;height:auto!important;cursor:zoom-out}' +
+    '.cv-slide.zoom{display:block!important;overflow:auto!important}' +
     '.cv-end{flex-direction:column;gap:14px;text-align:center}' +
     '.cv-end p{margin:0;font:900 18px Nunito,"Gowun Dodum",sans-serif}' +
     '.cv-end button{min-height:50px;padding:0 26px;border-radius:999px;border:1.5px solid #2E3870;background:#5565AA;color:#fff;font:900 16px Nunito,"Gowun Dodum",sans-serif;cursor:pointer;box-shadow:0 3px 0 #2E3870}' +
@@ -276,6 +277,34 @@
   /* 넘기는 도중에 또 누르면 가던 장 기준으로 (빠르게 여러 번 눌러도 안 놓침) */
   function step(d){ go((V.goal != null ? V.goal : V.i) + d); }
   function Bus(){ return window.GM635 || {}; }
+  /* 옆으로 넘기기 크기 맞추기: CSS 화면 단위(dvh)를 모르는 브라우저(카톡 안 브라우저, 옛 사파리 등)에서도
+     잘리지 않게, 실제 남은 화면을 재서 그림마다 원본 비율 그대로 크기를 정함. 둘레에 여백, 원본보다 키우지는 않음 */
+  function fitImg(im, W, H, pad){
+    if (!im.naturalWidth) return;
+    var k = Math.min(1, (W - pad * 2) / im.naturalWidth, (H - pad * 2) / im.naturalHeight);
+    im.style.width = Math.floor(im.naturalWidth * k) + 'px';
+    im.style.height = Math.floor(im.naturalHeight * k) + 'px';
+  }
+  function layout(){
+    var t = q('cvTrack'); if (!t || cv.hidden) return;
+    var all = [].slice.call(t.querySelectorAll('.cv-slide'));
+    if (V.vert) {   /* 세로로 이어 보기는 화면 폭에 맞춰 흐르게 (직접 정한 크기는 지움) */
+      t.style.height = ''; all.forEach(function(s){ s.style.cssText = ''; var im = s.querySelector('img'); if (im) { im.style.width = ''; im.style.height = ''; } });
+      return;
+    }
+    var vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    var H = Math.max(200, Math.floor(vh - cv.querySelector('.cv-top').offsetHeight - q('cvDots').offsetHeight - 6));
+    var W = t.clientWidth, pad = W < 600 ? 14 : 28;
+    t.style.height = H + 'px';
+    all.forEach(function(s){
+      s.style.cssText = 'flex:0 0 ' + W + 'px;width:' + W + 'px;height:' + H + 'px;padding:0';
+      var im = s.querySelector('img'); if (!im) return;
+      im.style.maxWidth = 'none'; im.style.maxHeight = 'none';
+      if (im.naturalWidth) fitImg(im, W, H, pad);
+      else { im.style.width = (W - pad * 2) + 'px'; im.style.height = 'auto'; im.onload = function(){ fitImg(im, W, H, pad); }; }   /* 불러오면 바로 맞춤 */
+    });
+    t.scrollLeft = Math.min(V.n, V.goal != null ? V.goal : V.i) * W;
+  }
   function unzoom(){ cv.querySelectorAll('.cv-slide.zoom').forEach(function(s){ s.classList.remove('zoom'); }); q('cvZoom').textContent = '＋ 확대'; }
   function toggleZoom(slide){
     slide = slide || slides()[V.i]; if (!slide) return;
@@ -288,7 +317,7 @@
     q('cvMode').textContent = vert ? '↔ 옆으로 넘기기' : '↕ 세로로 이어 보기';
     try { localStorage.setItem('pubam-comic-mode', vert ? 'v' : 'h'); } catch (e) {}   /* 마지막으로 고른 방식 기억 */
     if (vert) slides().forEach(function(s){ var im = s.querySelector('img'); im.loading = 'lazy'; if (!im.getAttribute('src')) im.src = im.dataset.src; });
-    var keep = V.i; setTimeout(function(){ go(keep, false); setIdx(keep); }, 30);
+    var keep = V.i; setTimeout(function(){ layout(); go(keep, false); setIdx(keep); }, 30);
   }
   async function loadReacts(){
     var r = await P.sb.rpc('reaction_counts', { p_type: 'artwork' });
@@ -399,7 +428,17 @@
       else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === ' ' || e.key === 'PageDown' || e.key === 'PageUp') { return; }
       e.stopImmediatePropagation();
     }, true);
-    window.addEventListener('resize', function(){ if (!cv.hidden && !V.vert) go(V.i, false); });
+    /* 화면 크기가 바뀌면(폰 돌리기, 주소창 접힘) 다시 잼 */
+    var lastW = 0, lastH = 0;
+    var relayout = function(){
+      if (cv.hidden) return;
+      var w = window.innerWidth, h = window.visualViewport ? Math.round(window.visualViewport.height) : window.innerHeight;
+      if (w === lastW && Math.abs(h - lastH) < 2) return;   /* 크기가 그대로면 넘기는 중인 것을 건드리지 않음 */
+      lastW = w; lastH = h; layout();   /* layout이 지금(또는 가던) 장 위치를 그대로 지킴 */
+    };
+    window.addEventListener('resize', relayout);
+    window.addEventListener('orientationchange', function(){ setTimeout(relayout, 250); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', relayout);
   }
 
   /* ---------- 이벤트 ---------- */
