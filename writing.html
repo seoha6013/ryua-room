@@ -377,6 +377,8 @@ function render(){
     const ADULT_WHAT = { posts: '성인 글 1편', artworks: '성인 그림 1장', logs: '성인 로그 1개' };
     html = rows.length ? `<ul class="log">${rows.map(l => {
       const by = PEOPLE[l.actor] || { name: '누군가', color: '#fff' };
+      /* 기록장: "명장면 올림", "명예의 전당 올림" (성인은 문구를 가리고 "성인 명장면 1개 올림") */
+      if (l.table_name === 'records') return `<li style="--w:${by.color}"><time>${stamp(l.at)}</time><span class="act"><b>${esc(by.name)}</b> 님이 ${l.is_adult ? '성인 ' + esc(l.title || '기록') + ' 1개' : esc(l.title || '기록')} ${esc(l.action)}</span></li>`;
       if (l.is_adult) return `<li style="--w:${by.color}"><time>${stamp(l.at)}</time><span class="act"><b>${esc(by.name)}</b> 님이 ${ADULT_WHAT[l.table_name] || '성인 콘텐츠'} ${esc(l.action)}</span></li>`;   /* 성인 글·그림은 제목을 가림 */
       const p = l.table_name === 'posts' && l.action !== '삭제' ? allPosts().find(x => String(x.id) === l.row_id) : null;
       const what = p ? `<a data-goto="${p.id}">${esc(l.title)}</a>` : `<span>${esc(l.title || '')}</span>`;

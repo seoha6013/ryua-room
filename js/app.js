@@ -11,7 +11,7 @@ https://www.tooplate.com/view/2171-spatial-diorama
   var $ = function(s, r){ return (r || doc).querySelector(s); };
   var $$ = function(s, r){ return Array.prototype.slice.call((r || doc).querySelectorAll(s)); };
   var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  var SECTIONS = ['hero', 'gallery', 'cabinet', 'mail'];
+  var SECTIONS = ['hero', 'gallery', 'cabinet', 'mail', 'records'];
   var SOUND_KEY = 'gm635-sound';
 
   var Bus = window.GM635 = {
@@ -192,7 +192,7 @@ https://www.tooplate.com/view/2171-spatial-diorama
   window.addEventListener('keydown', function(){ Sound.arm(); }, true);
 
   /* ---------------- Panels ---------------- */
-  var panels = { hero: $('#panel-hero'), gallery: $('#panel-gallery'), cabinet: $('#panel-cabinet'), mail: $('#panel-mail') };
+  var panels = { hero: $('#panel-hero'), gallery: $('#panel-gallery'), cabinet: $('#panel-cabinet'), mail: $('#panel-mail'), records: $('#panel-records') };
   var lastTrigger = null;
 
   $$('[data-stagger]').forEach(function(wrap){
@@ -266,7 +266,7 @@ https://www.tooplate.com/view/2171-spatial-diorama
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     var n = parseInt(e.key, 10);
-    if (n >= 1 && n <= 4) { e.preventDefault(); open(SECTIONS[n - 1]); }
+    if (n >= 1 && n <= SECTIONS.length) { e.preventDefault(); open(SECTIONS[n - 1]); }
   });
 
   /* ---------------- Smooth wheel scrolling (panels + gallery) ---------------- */
@@ -310,7 +310,7 @@ https://www.tooplate.com/view/2171-spatial-diorama
       glideTo: function(v){ if (!st.raf) st.cur = el[prop]; st.target = Math.max(0, Math.min(max(), v)); if (!st.raf) { st.last = performance.now(); st.raf = requestAnimationFrame(tick); } }
     };
   }
-  ['hero', 'gallery', 'cabinet', 'mail'].forEach(function(id){ smoothScroller(panels[id], false); });
+  ['hero', 'gallery', 'cabinet', 'mail', 'records'].forEach(function(id){ smoothScroller(panels[id], false); });
 
   /* 액자(그림 백업) 화면은 js/gallery.js 가 서버 그림으로 채움 */
 

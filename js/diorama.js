@@ -675,6 +675,55 @@ function boot(){
   flag.rotation.x = flagS.x;
   makeSection('mail', mail, new V3(0, 2.0, 0));
 
+  /* 05 키 큰 책장 = 기록장. 파란 책 = 명장면, 노란 책 = 주사위 명예의 전당 (누르면 그 탭으로)
+     뒷벽 주방과 냉장고 사이 빈자리. TV 위 작은 선반은 장식 그대로 */
+  const SHELF = { x: 0.45, z: -4.6 };
+  const shelf = new THREE.Group(); shelf.position.set(SHELF.x, FLOOR, SHELF.z); scene.add(shelf);
+  {
+    const g = shelf, W = 0.98, H = 2.35, D = 0.42, wood = 0xF3EFE6, paint = [];
+    [-1, 1].forEach(sd => paint.push(put(rbox(0.05, H, D, 0.02, wood), sd * (W / 2 - 0.025), H / 2, 0, g)));   /* 옆판 */
+    paint.push(put(rbox(W + 0.06, 0.06, D + 0.04, 0.025, wood), 0, H + 0.01, 0, g));                      /* 윗판 */
+    paint.push(put(rbox(W, 0.1, D, 0.02, wood), 0, 0.05, 0, g));                                          /* 받침 */
+    put(rbox(W - 0.06, H - 0.1, 0.02, 0.01, 0xFFF8EE), 0, H / 2, -D / 2 + 0.02, g);                       /* 뒤판 */
+    const SH = [0.1, 0.55, 1.0, 1.45, 1.9];                                                                /* 칸 바닥 높이 */
+    SH.slice(1).forEach(y => paint.push(put(rbox(W - 0.08, 0.035, D - 0.04, 0.012, wood), 0, y - 0.0175, 0.01, g)));
+    /* 책 한 줄: [폭, 높이, 색, 기울기] → 책등에 흰 띠. tag가 있으면 눌러서 그 탭으로 */
+    const row = (y, books, tag, x0) => {
+      let x = x0 == null ? -W / 2 + 0.07 : x0;
+      books.forEach(([w, h, c, lean]) => {
+        const b = new THREE.Group(); b.position.set(x + w / 2, y, 0.03); b.rotation.z = lean || 0; g.add(b);
+        const m = put(rbox(w, h, 0.28, 0.012, c, { roughness: 0.6, emissive: c, emissiveIntensity: tag ? 0.12 : 0 }), 0, h / 2, 0, b);
+        put(rbox(w + 0.002, 0.03, 0.01, 0.004, 0xFFFFFF), 0, h * 0.72, 0.141, b);
+        put(rbox(w + 0.002, 0.015, 0.01, 0.004, 0xFFFFFF), 0, h * 0.25, 0.141, b);
+        if (tag) b.traverse(o => { o.userData.recTab = tag; });
+        x += w + 0.008 + (lean ? 0.02 : 0);
+      });
+    };
+    const BLUE = [0x5565AA, 0x6F7FC4, 0x4A5A9E, 0x8796D6, 0x5565AA, 0x3F4E8C, 0x7383C8];
+    const YEL = [0xF2E6A0, 0xE8D77A, 0xF7EDB8, 0xEBDB86, 0xF2E6A0, 0xF0E08E];
+    /* 맨 위 칸: 장식 (화분 · 별 · 작은 책) */
+    put(cyl(0.07, 0.06, 0.1, 0xFFD1DC, null, 16), -0.3, SH[4] + 0.05, 0.03, g);
+    put(sph(0.08, 0x7FD498, null, 14), -0.3, SH[4] + 0.15, 0.03, g).scale.y = 1.2;
+    const st = put(new THREE.Mesh(starGeo, mat(0xFFE27A, { emissive: 0xFFE27A, emissiveIntensity: 0.25 })), 0.02, SH[4] + 0.17, 0.03, g); st.scale.setScalar(0.32);
+    row(SH[4], [[0.06, 0.26, 0xE6E6FA], [0.05, 0.3, 0xFFC3D3], [0.06, 0.24, 0xC8E6C9, -0.25]], null, 0.16);
+    /* 파란 책 = 명장면 */
+    row(SH[3], BLUE.map((c, i) => [0.075 + (i % 3) * 0.01, 0.34 + (i % 4) * 0.025, c, i === 6 ? -0.22 : 0]), 'scenes');
+    /* 노란 책 = 주사위 명예의 전당 + 작은 주사위 */
+    row(SH[2], YEL.map((c, i) => [0.08 + (i % 2) * 0.012, 0.33 + (i % 3) * 0.03, c, i === 5 ? -0.2 : 0]), 'dice');
+    const die = put(rbox(0.09, 0.09, 0.09, 0.018, 0xFFFFFF), 0.36, SH[2] + 0.045, 0.06, g); die.rotation.y = 0.5;
+    [[0, 0.046, 0], [0.02, 0.046, 0.02], [-0.02, 0.046, -0.02]].forEach(([dx, dy, dz]) => put(sph(0.009, 0xE5484D, null, 8), dx, dy, dz, die));
+    die.traverse(o => { o.userData.recTab = 'dice'; });
+    /* 아래 칸들: 다른 색 장식 책 · 상자 · 바구니 */
+    row(SH[1], [[0.07, 0.36, 0xFFC3D3], [0.06, 0.32, 0xC8E6C9], [0.08, 0.38, 0xE6E6FA], [0.06, 0.3, 0xFFD9B8], [0.07, 0.35, 0xB4E8BD, -0.18]]);
+    put(rbox(0.22, 0.16, 0.24, 0.03, 0xCEDEF2), 0.3, SH[1] + 0.08, 0.02, g);
+    put(rbox(0.38, 0.05, 0.26, 0.012, 0xFFE3EB), -0.18, SH[0] + 0.025, 0.03, g);                          /* 눕혀 둔 큰 책 */
+    put(rbox(0.36, 0.05, 0.25, 0.012, 0xDEDAFB), -0.17, SH[0] + 0.075, 0.03, g).rotation.y = 0.08;
+    put(cyl(0.15, 0.13, 0.22, 0xF2E6A0, null, 20), 0.27, SH[0] + 0.11, 0.03, g);                           /* 바구니 */
+    put(sph(0.07, 0xFFFFFF, null, 12), 0.25, SH[0] + 0.22, 0.03, g);
+    g.userData.paint = paint;
+  }
+  makeSection('records', shelf, new V3(0, 2.62, 0.1));
+
   /* ---------- 캐릭터 (원래 Mochi 토끼 자리) ---------- */
   /* ---------- 푸밤 캐릭터 (HO1·HO2 꼬마) ----------
      머리 큰 SD 체형: 둥근 머리 + 사다리꼴 몸통 + 발 두 개, 회색 외곽선.
@@ -1150,6 +1199,7 @@ function boot(){
     { x: TABLE.x, z: TABLE.z, r: 0.62 }, { x: TABLE.x - 1.07, z: TABLE.z, r: 0.34 }, { x: TABLE.x + 1.07, z: TABLE.z, r: 0.34 },   /* 식탁, 의자 */
     { x: KITCHEN.x - 0.27, z: KITCHEN.z, r: 0.4 }, { x: KITCHEN.x + 0.27, z: KITCHEN.z, r: 0.4 },   /* 주방 */
     { x: FRIDGE.x, z: FRIDGE.z, r: 0.45 },                                            /* 냉장고 */
+    { x: SHELF.x, z: SHELF.z, r: 0.5 },                                               /* 책장 */
     { x: LAMP.x, z: LAMP.z, r: 0.3 }                                                  /* 조명 */
   ];
   const BOUND = 4.45, BUN_R = 0.42;
@@ -1173,13 +1223,15 @@ function boot(){
     gallery: { x: -2.9, z: 1.55, face: -Math.PI / 2 },
     cabinet: { x: 2.3, z: -2.45, face: Math.PI },
     mail: { x: 2.9, z: 3.75, face: Math.PI / 4 },
+    records: { x: SHELF.x + 0.75, z: SHELF.z + 1.15, face: Math.PI * 1.15 },   /* 책장 앞 오른쪽 (카메라를 가리지 않게) */
     secret: { x: -3.1, z: 2.95, face: -2.4 }   /* 화분 물 주는 자리 (화분 옆: 화면에서 옆모습이 보이게) */
   };
 
   /* Jump trigger zones: an object opens when Mochi jumps within reach of it */
   const TRIG = {
     hero: { x: -2.0, z: -4.1, r: 1.35 }, gallery: { x: -4.3, z: 1.55, r: 0.6 },
-    cabinet: { x: 2.3, z: -4.2, r: 1.45 }, mail: { x: 3.75, z: 2.9, r: 0.55 }
+    cabinet: { x: 2.3, z: -4.2, r: 1.45 }, mail: { x: 3.75, z: 2.9, r: 0.55 },
+    records: { x: SHELF.x, z: SHELF.z, r: 0.5 }
   };
   const REACH = 0.75;
   function nearSection(){
@@ -1312,6 +1364,15 @@ function boot(){
       const shift = wide ? new V3(1.55, 0, 0) : new V3(0, -1.6, 0);
       return { pos: pos.add(shift), tgt: c.add(shift) };
     }
+    if (id === 'records') {
+      /* 책장 정면에서, 패널(오른쪽)에 가리지 않게 책장이 왼쪽에 오도록 */
+      const c = shelf.localToWorld(new V3(0, 1.25, 0.2));
+      const n = new V3(0, 0, 1).applyQuaternion(shelf.getWorldQuaternion(tmpQ)); n.y = 0; n.normalize();
+      const pos = c.clone().addScaledVector(n, portrait ? 8.6 : 5.8).add(new V3(0, portrait ? 4.2 : 2.9, 0));   /* 위에서 내려다봐서 캐릭터 머리에 안 가림 */
+      const camRight = new V3().crossVectors(n.clone().negate(), new V3(0, 1, 0)).normalize();
+      const shift = wide ? camRight.multiplyScalar(1.9) : new V3(0, -1.5, 0);
+      return { pos: pos.add(shift), tgt: c.add(shift) };
+    }
     if (id === 'secret') {
       const c = plant.localToWorld(new V3(0, 1.45, 0)).add(new V3(SPOTS.secret.x, 1.25, SPOTS.secret.z)).multiplyScalar(0.5);
       const dir = new V3(1, 0.42, 0.55).normalize();
@@ -1372,6 +1433,7 @@ function boot(){
     const hit = ray.intersectObjects(pickables, false)[0];
     if (!hit) return null;
     const sec = sectionOf(hit.object);
+    if (sec && hit.object.userData.recTab) return { type: 'section', id: sec, tab: hit.object.userData.recTab };   /* 파란 책·노란 책 */
     if (sec) return { type: 'section', id: sec };
     if (hit.object.userData.bunny) return { type: 'bunny' };
     if (hit.object.userData.buddy) return { type: 'buddy' };
@@ -1395,7 +1457,7 @@ function boot(){
     if (seat.k > 0 || water.on) return;
     const h = pick(e.clientX, e.clientY);
     if (!h) return;
-    if (h.type === 'section') { kick(h.id); Bus.open(h.id); }
+    if (h.type === 'section') { kick(h.id); if (h.tab && window.PUBAM_RECORDS) window.PUBAM_RECORDS.setTab(h.tab); Bus.open(h.id); }
     else if (h.type === 'bunny') jumpAction();
     else if (h.type === 'buddy') { hopBud(4.4); Bus.audio.hop(); }
     else if (h.type === 'bed') goSleep();
@@ -1468,6 +1530,16 @@ function boot(){
   movable('kitchen', '주방', kitchen, 0.75, [obstDep(findObst(KITCHEN.x - 0.27, KITCHEN.z)), obstDep(findObst(KITCHEN.x + 0.27, KITCHEN.z))]);
   movable('fridge', '냉장고', fridge, 0.55, [obstDep(findObst(FRIDGE.x, FRIDGE.z)), spotDep(FRIDGE_SPOT)]);
   movable('lamp', '조명', lamp, 0.4, [obstDep(findObst(LAMP.x, LAMP.z)), vecDep(lampLight.position)]);
+  movable('shelf', '책장', shelf, 0.6, [obstDep(findObst(SHELF.x, SHELF.z)), spotDep(SPOTS.records), trigDep(TRIG.records)]);
+
+  /* 처음 배치 = 지금 사이트에 저장된 배치(2026-11-25) + 새 책장. '처음 배치로'도 여기로 돌아감 */
+  const SITE_DEFAULT = {
+    tv: { x: -3.087, z: -4.229, ry: 0.7854 }, bed: { x: 4.2, z: -0.035, ry: 0 }, lamp: { x: -4.034, z: 4.65, ry: 0 },
+    mail: { x: 2.857, z: 4.12, ry: 0.7854 }, sofa: { x: -4.016, z: -1.21, ry: 0 }, plant: { x: -4.01, z: 3.648, ry: 0 },
+    table: { x: -0.828, z: 3.816, ry: 0 }, fridge: { x: 1.375, z: -4.576, ry: 0 }, cabinet: { x: 3.863, z: -4.228, ry: 0 },
+    kitchen: { x: -0.62, z: -4.575, ry: 0 }, shelf: { x: 0.45, z: -4.6, ry: 0 }
+  };
+  movables.forEach(it => { const d = SITE_DEFAULT[it.id]; if (d) it.home = { x: d.x, z: d.z, ry: d.ry }; });
 
   /* 색 바꾸기: 가구마다 바꿀 수 있는 주요 부분. [이름, 메시들] */
   const PAINT_PARTS = {
@@ -1478,6 +1550,7 @@ function boot(){
     fridge: [['냉장고', fridge.userData.paint]],
     tv: [['TV', tv.userData.paint]],
     cabinet: [['서랍장', cab.userData.paint]],
+    shelf: [['책장', shelf.userData.paint]],
     plant: [['화분', plant.userData.paint]]
   };
   movables.forEach(it => {
@@ -1524,7 +1597,7 @@ function boot(){
   (function loadLayout(){
     let local = null;
     try { local = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null'); } catch (e) {}
-    applyLayout(window.PUBAM_LAYOUT || null);
+    applyLayout(window.PUBAM_LAYOUT || SITE_DEFAULT);
     if (!PB || !PB.sb) { applyLayout(local); return; }
     PB.sb.from('layout').select('data').eq('id', 1).maybeSingle().then(r => {
       if (r.data && r.data.data) applyLayout(r.data.data);

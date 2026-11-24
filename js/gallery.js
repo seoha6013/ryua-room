@@ -192,255 +192,29 @@
     '.ag-cover img{width:72px;height:72px;border-radius:12px;object-fit:cover;background:var(--lav-fill);display:block}' +
     '.ag-badge{position:absolute;left:-4px;bottom:-6px;font:900 10px/1 Nunito,"Gowun Dodum",sans-serif;font-style:normal;color:#fff;background:#5565AA;border:1.5px solid #fff;border-radius:999px;padding:4px 7px;white-space:nowrap;box-shadow:0 2px 0 rgba(31,27,36,.25)}' +
     '.ag-comic b{font:800 15px/1.35 Nunito,"Gowun Dodum",sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}' +
-    '.ag-comic small{font:700 12px/1.4 Nunito,"Gowun Dodum",sans-serif;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-    /* 보기 화면 */
-    '.cv{position:fixed;inset:0;z-index:200;background:#F7F6FB;display:flex;flex-direction:column;font:15px/1.6 Nunito,"Gowun Dodum",system-ui,sans-serif;color:#1F1B24}' +
-    '.cv[hidden]{display:none}' +
-    '.cv-top{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid #E3DFEC;z-index:2}' +
-    '.cv-top b{flex:1;font:900 16px Nunito,"Gowun Dodum",sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-    '.cv-count{font:900 14px Nunito,sans-serif;color:#4A4552;white-space:nowrap}' +
-    '.cv-btn{min-height:40px;padding:0 12px;border-radius:999px;border:1.5px solid #D9D5E3;background:#fff;font:800 13px Nunito,"Gowun Dodum",sans-serif;cursor:pointer;white-space:nowrap}' +
-    '.cv-btn:hover{border-color:#1F1B24}' +
-    '.cv-x{width:44px;height:44px;flex:none;border-radius:50%;border:1.5px solid #1F1B24;background:#fff;font:900 18px Nunito,sans-serif;cursor:pointer;box-shadow:0 2px 0 #1F1B24}' +
-    '.cv-scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}' +
-    '.cv-stage{position:relative;transition:transform .2s,opacity .2s}' +
-    '.cv{--cvh:calc(100dvh - 128px)}' +
-    '.cv-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;height:var(--cvh);overscroll-behavior-x:contain}' +
-    '.cv-track::-webkit-scrollbar{display:none}' +
-    /* 한 장이 화면 안에 통째로 보이게: 장 칸 = 보기 칸 크기, 그림은 비율 그대로 그 안에 맞춤 */
-    '.cv-slide{flex:0 0 100%;width:100%;height:var(--cvh);box-sizing:border-box;padding:8px;scroll-snap-align:center;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}' +
-    '.cv-slide img{width:auto;height:auto;max-width:100%;max-height:calc(var(--cvh) - 16px);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;background:#fff;outline:1px solid #D9D5E3;box-shadow:0 2px 14px -6px rgba(31,27,36,.35)}' +   /* 얇은 테두리 = 원본 그림의 끝 */
-    '.cv-slide.zoom{display:block;overflow:auto;touch-action:pan-x pan-y}' +
-    '.cv-slide.zoom img{max-width:none!important;max-height:none!important;width:200%!important;height:auto!important;cursor:zoom-out}' +
-    '.cv-slide.zoom{display:block!important;overflow:auto!important}' +
-    '.cv-end{flex-direction:column;gap:14px;text-align:center}' +
-    '.cv-end p{margin:0;font:900 18px Nunito,"Gowun Dodum",sans-serif}' +
-    '.cv-end button{min-height:50px;padding:0 26px;border-radius:999px;border:1.5px solid #2E3870;background:#5565AA;color:#fff;font:900 16px Nunito,"Gowun Dodum",sans-serif;cursor:pointer;box-shadow:0 3px 0 #2E3870}' +
-    '.cv-nav{position:absolute;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;border:1.5px solid #1F1B24;background:rgba(255,255,255,.92);font:900 26px/1 Nunito,sans-serif;cursor:pointer;box-shadow:0 3px 0 #1F1B24;z-index:2}' +
-    '.cv-nav:disabled{opacity:.25;cursor:default}' +
-    '.cv-nav.prev{left:14px}.cv-nav.next{right:14px}' +
-    '.cv-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:8px 12px 4px;max-width:720px;margin:0 auto}' +
-    '.cv-dots button{width:26px;height:26px;border:0;background:none;cursor:pointer;display:grid;place-items:center;padding:0}' +
-    '.cv-dots button::before{content:"";width:9px;height:9px;border-radius:50%;background:#CFCADB;transition:transform .2s,background .2s}' +
-    '.cv-dots button[aria-current="true"]::before{background:#5565AA;transform:scale(1.35)}' +
-    '.cv-under{max-width:720px;margin:0 auto;padding:10px 16px 40px}' +
-    '.cv-under h2{margin:8px 0 2px;font:900 19px Nunito,"Gowun Dodum",sans-serif}' +
-    '.cv-under .cap{margin:0 0 6px;color:#4A4552}' +
-    '.cv-react{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}' +
-    '.cv-react button{min-height:42px;padding:0 14px;border-radius:999px;border:1.5px solid #D9D5E3;background:#fff;cursor:pointer;font-size:15px}' +
-    '.cv-react button[aria-pressed="true"]{background:#F2E6A0;border-color:#1F1B24}' +
-    '.cv-under h3{margin:14px 0 6px;font:900 14px Nunito,"Gowun Dodum",sans-serif}' +
-    '.cv-under .ag-cl li{background:#fff}' +
-    /* 세로로 이어 보기 (웹툰처럼) */
-    '.cv.vert .cv-track{display:block;overflow:visible;height:auto;scroll-snap-type:none}' +
-    '.cv.vert .cv-slide{display:block;height:auto;padding:0;overflow-x:auto;scroll-snap-align:none}' +
-    '.cv.vert .cv-slide img{width:min(100%,860px);max-height:none;margin:0 auto;box-shadow:none}' +
-    '.cv.vert .cv-slide.zoom img{width:200%;max-width:none}' +
-    '.cv.vert .cv-end{display:flex;padding:30px 0}' +
-    '.cv.vert .cv-nav,.cv.vert .cv-dots{display:none}' +
-    '@media (max-width:600px){.cv-top{gap:6px;padding:8px}.cv-btn{padding:0 10px;font-size:12px;min-height:38px}.cv-x{width:48px;height:48px}.cv-nav{display:none}.cv{--cvh:calc(100dvh - 120px)}.cv-top b{font-size:14px}}';
+    '.ag-comic small{font:700 12px/1.4 Nunito,"Gowun Dodum",sans-serif;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
   document.head.appendChild(cvCss);
 
-  var cv = document.createElement('div');
-  cv.className = 'cv'; cv.id = 'cv'; cv.hidden = true;
-  cv.setAttribute('role', 'dialog'); cv.setAttribute('aria-modal', 'true'); cv.setAttribute('aria-labelledby', 'cvTitle');
-  cv.innerHTML =
-    '<div class="cv-top"><b id="cvTitle"></b><span class="cv-count" id="cvCount" aria-live="polite"></span>' +
-      '<button type="button" class="cv-btn" id="cvMode"></button><button type="button" class="cv-btn" id="cvZoom">＋ 확대</button>' +
-      '<button type="button" class="cv-x" id="cvClose" aria-label="닫기">✕</button></div>' +
-    '<div class="cv-scroll" id="cvScroll"><div class="cv-stage" id="cvStage">' +
-      '<div class="cv-track" id="cvTrack"></div>' +
-      '<button type="button" class="cv-nav prev" id="cvPrev" aria-label="이전 장">‹</button><button type="button" class="cv-nav next" id="cvNext" aria-label="다음 장">›</button>' +
-    '</div><div class="cv-dots" id="cvDots" role="group" aria-label="장 고르기"></div><section class="cv-under" id="cvUnder"></section></div>';
-  var V = { art: null, i: 0, n: 0, vert: false, back: null, react: {} };
-  var REACTS = ['❤️', '😭', '👍', '🤣'];
-  var mineR = (function(){ try { return JSON.parse(localStorage.getItem('pubam-reacted') || '{}'); } catch (e) { return {}; } })();
-  function q(id){ return cv.querySelector('#' + id); }
-  function slides(){ return [].slice.call(q('cvTrack').querySelectorAll('.cv-slide[data-i]')); }
-  function want(i){   /* 지금 장과 앞뒤 장은 미리 불러 둠 */
-    slides().forEach(function(s){ var k = +s.dataset.i, im = s.querySelector('img'); if (Math.abs(k - i) <= 2 && !im.getAttribute('src')) im.src = im.dataset.src; });
-  }
-  function setIdx(i){
-    if (V.goal != null && i === V.goal) V.goal = null;   /* 넘기는 중이던 장에 도착 */
-    V.i = Math.max(0, Math.min(V.n - 1, i));
-    q('cvCount').textContent = (V.i + 1) + ' / ' + V.n;
-    [].forEach.call(q('cvDots').children, function(b, k){ b.setAttribute('aria-current', k === V.i ? 'true' : 'false'); });
-    q('cvPrev').disabled = V.i === 0;
-    want(V.i);
-  }
-  function go(i, smooth){
-    var t = q('cvTrack');
-    if (V.vert) { var s = slides()[Math.max(0, Math.min(V.n - 1, i))]; if (s) s.scrollIntoView({ block: 'start', behavior: smooth === false ? 'auto' : 'smooth' }); return; }
-    V.goal = Math.max(0, Math.min(V.n, i));
-    t.scrollTo({ left: V.goal * t.clientWidth, behavior: smooth === false || Bus().reduced ? 'auto' : 'smooth' });
-  }
-  /* 넘기는 도중에 또 누르면 가던 장 기준으로 (빠르게 여러 번 눌러도 안 놓침) */
-  function step(d){ go((V.goal != null ? V.goal : V.i) + d); }
-  function Bus(){ return window.GM635 || {}; }
-  /* 옆으로 넘기기 크기 맞추기: CSS 화면 단위(dvh)를 모르는 브라우저(카톡 안 브라우저, 옛 사파리 등)에서도
-     잘리지 않게, 실제 남은 화면을 재서 그림마다 원본 비율 그대로 크기를 정함. 둘레에 여백, 원본보다 키우지는 않음 */
-  function fitImg(im, W, H, pad){
-    if (!im.naturalWidth) return;
-    var k = Math.min(1, (W - pad * 2) / im.naturalWidth, (H - pad * 2) / im.naturalHeight);
-    im.style.width = Math.floor(im.naturalWidth * k) + 'px';
-    im.style.height = Math.floor(im.naturalHeight * k) + 'px';
-  }
-  function layout(){
-    var t = q('cvTrack'); if (!t || cv.hidden) return;
-    var all = [].slice.call(t.querySelectorAll('.cv-slide'));
-    if (V.vert) {   /* 세로로 이어 보기는 화면 폭에 맞춰 흐르게 (직접 정한 크기는 지움) */
-      t.style.height = ''; all.forEach(function(s){ s.style.cssText = ''; var im = s.querySelector('img'); if (im) { im.style.width = ''; im.style.height = ''; } });
-      return;
-    }
-    var vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    var H = Math.max(200, Math.floor(vh - cv.querySelector('.cv-top').offsetHeight - q('cvDots').offsetHeight - 6));
-    var W = t.clientWidth, pad = W < 600 ? 14 : 28;
-    t.style.height = H + 'px';
-    all.forEach(function(s){
-      s.style.cssText = 'flex:0 0 ' + W + 'px;width:' + W + 'px;height:' + H + 'px;padding:0';
-      var im = s.querySelector('img'); if (!im) return;
-      im.style.maxWidth = 'none'; im.style.maxHeight = 'none';
-      if (im.naturalWidth) fitImg(im, W, H, pad);
-      else { im.style.width = (W - pad * 2) + 'px'; im.style.height = 'auto'; im.onload = function(){ fitImg(im, W, H, pad); }; }   /* 불러오면 바로 맞춤 */
-    });
-    t.scrollLeft = Math.min(V.n, V.goal != null ? V.goal : V.i) * W;
-  }
-  function unzoom(){ cv.querySelectorAll('.cv-slide.zoom').forEach(function(s){ s.classList.remove('zoom'); }); q('cvZoom').textContent = '＋ 확대'; }
-  function toggleZoom(slide){
-    slide = slide || slides()[V.i]; if (!slide) return;
-    var on = !slide.classList.contains('zoom'); unzoom();
-    if (on) { slide.classList.add('zoom'); q('cvZoom').textContent = '－ 원래대로'; }
-  }
-  function setMode(vert){
-    V.vert = vert; unzoom();
-    cv.classList.toggle('vert', vert);
-    q('cvMode').textContent = vert ? '↔ 옆으로 넘기기' : '↕ 세로로 이어 보기';
-    try { localStorage.setItem('pubam-comic-mode', vert ? 'v' : 'h'); } catch (e) {}   /* 마지막으로 고른 방식 기억 */
-    if (vert) slides().forEach(function(s){ var im = s.querySelector('img'); im.loading = 'lazy'; if (!im.getAttribute('src')) im.src = im.dataset.src; });
-    var keep = V.i; setTimeout(function(){ layout(); go(keep, false); setIdx(keep); }, 30);
-  }
-  async function loadReacts(){
-    var r = await P.sb.rpc('reaction_counts', { p_type: 'artwork' });
-    V.react = {};
-    (r.data || []).forEach(function(x){ if (x.target_id === V.art.id) V.react[x.emoji] = Number(x.n); });
-    renderUnder();
-  }
-  function renderUnder(){
-    var a = V.art; if (!a) return;
-    q('cvUnder').innerHTML =
-      (a.title ? '<h2>' + esc(a.title) + '</h2>' : '') + (a.caption ? '<p class="cap">' + esc(a.caption) + '</p>' : '') +
-      '<p class="cap" style="font-size:13px">' + dayOf(a).replace(/-/g, '.') + ' · ' + a.author.toUpperCase() + ' PL · ' + V.n + '장</p>' +
-      '<div class="cv-react" role="group" aria-label="반응">' + REACTS.map(function(e){
-        return '<button type="button" data-cvr="' + e + '" aria-pressed="' + !!mineR['artwork:' + a.id + ':' + e] + '">' + e + ' <span>' + (V.react[e] || 0) + '</span></button>';
-      }).join('') + '</div>' +
-      commentsHTML(a) +
+  /* 묶음 크게 보기: 공통 보기 화면(js/viewer.js)을 씀 */
+  function VW(){ return window.PUBAM_VIEWER; }
+  var viewingId = null;
+  function underHTML(a){
+    return (a.title ? '<h2>' + esc(a.title) + '</h2>' : '') + (a.caption ? '<p class="cap">' + esc(a.caption) + '</p>' : '') +
+      '<p class="cap" style="font-size:13px">' + dayOf(a).replace(/-/g, '.') + ' · ' + a.author.toUpperCase() + ' PL · ' + pagesOf(a).length + '장</p>' +
+      VW().reactHTML() + commentsHTML(a) +
       '<div class="ag-pl"><a class="ag-sm" href="upload.html#edit-art=' + a.id + '">수정</a><button class="ag-sm" type="button" data-adel="' + a.id + '">삭제</button></div>';
   }
   function openComic(a){
-    var pages = pagesOf(a);
-    V.art = a; V.n = pages.length; V.i = 0; V.back = document.activeElement; V.react = {};
-    q('cvTitle').textContent = a.fold_text || a.title || '그림';
-    q('cvTrack').innerHTML = pages.map(function(p, i){
-      return '<div class="cv-slide" data-i="' + i + '"><img data-src="' + esc(url(p)) + '" alt="' + (i + 1) + ' / ' + pages.length + '쪽" draggable="false"></div>';
-    }).join('') + '<div class="cv-slide cv-end"><p>마지막 장이에요</p><button type="button" data-first>처음으로</button></div>';
-    q('cvDots').innerHTML = pages.map(function(p, i){ return '<button type="button" data-dot="' + i + '" aria-label="' + (i + 1) + '장으로"></button>'; }).join('');
-    renderUnder(); loadReacts();
-    cv.hidden = false; document.documentElement.style.overflow = 'hidden';
-    q('cvScroll').scrollTop = 0;
-    var saved = 'h'; try { saved = localStorage.getItem('pubam-comic-mode') || 'h'; } catch (e) {}
-    setMode(saved === 'v');
-    q('cvTrack').scrollLeft = 0; setIdx(0);
-    q('cvClose').focus();
+    viewingId = a.id;
+    VW().open({
+      key: 'art:' + a.id, title: a.fold_text || a.title || '그림', urls: pagesOf(a).map(url),
+      react: { type: 'artwork', id: a.id },
+      under: function(){ return underHTML(all().find(function(x){ return x.id === a.id; }) || a); },
+      onClose: function(){ viewingId = null; }
+    });
     hang(a);
   }
-  function closeComic(){
-    if (cv.hidden) return;
-    cv.hidden = true; document.documentElement.style.overflow = ''; unzoom();
-    q('cvStage').style.transform = ''; q('cvStage').style.opacity = '';
-    V.art = null; q('cvTrack').innerHTML = '';
-    if (V.back && V.back.focus) try { V.back.focus({ preventScroll: true }); } catch (e) {}
-  }
-  function mountViewer(){
-    document.body.appendChild(cv);
-    var t = q('cvTrack'), raf = 0;
-    t.addEventListener('scroll', function(){   /* 옆으로 넘길 때 지금 장 */
-      if (V.vert) return;
-      cancelAnimationFrame(raf); raf = requestAnimationFrame(function(){ setIdx(Math.round(t.scrollLeft / Math.max(1, t.clientWidth))); });
-    }, { passive: true });
-    q('cvScroll').addEventListener('scroll', function(){   /* 세로로 볼 때 지금 장 */
-      if (!V.vert) return;
-      var top = q('cvScroll').getBoundingClientRect().top + 80, best = 0;
-      slides().forEach(function(s, k){ if (s.getBoundingClientRect().top <= top) best = k; });
-      if (best !== V.i) setIdx(best);
-    }, { passive: true });
-    q('cvPrev').addEventListener('click', function(){ step(-1); });
-    q('cvNext').addEventListener('click', function(){ step(1); });
-    t.addEventListener('touchstart', function(){ V.goal = null; }, { passive: true });   /* 손가락으로 넘기면 그쪽이 우선 */
-    q('cvClose').addEventListener('click', closeComic);
-    q('cvMode').addEventListener('click', function(){ setMode(!V.vert); });
-    q('cvZoom').addEventListener('click', function(){ toggleZoom(); });
-    cv.addEventListener('click', async function(e){
-      var d = e.target.closest('[data-dot]'); if (d) { go(+d.dataset.dot); return; }
-      if (e.target.closest('[data-first]')) { if (V.vert) q('cvScroll').scrollTo({ top: 0, behavior: 'smooth' }); else go(0); return; }
-      var r = e.target.closest('[data-cvr]');
-      if (r) {
-        var id = V.art.id, k = r.dataset.cvr, key = 'artwork:' + id + ':' + k; r.disabled = true;
-        var res = await P.sb.rpc('toggle_reaction', { p_type: 'artwork', p_id: id, p_emoji: k, p_client: P.clientId });
-        r.disabled = false; if (res.error) { alert(P.msg(res.error)); return; }
-        var on = res.data === true; if (on) mineR[key] = 1; else delete mineR[key];
-        try { localStorage.setItem('pubam-reacted', JSON.stringify(mineR)); } catch (x) {}
-        V.react[k] = Math.max(0, (V.react[k] || 0) + (on ? 1 : -1)); renderUnder();
-      }
-    });
-    /* 두 번 탭(또는 더블클릭)하면 확대 */
-    var lastTap = { t: 0, x: 0, y: 0 };
-    t.addEventListener('pointerup', function(e){
-      var s = e.target.closest('.cv-slide[data-i]'); if (!s) return;
-      var now = performance.now();
-      if (now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { toggleZoom(s); lastTap.t = 0; }
-      else lastTap = { t: now, x: e.clientX, y: e.clientY };
-    });
-    /* 폰: 맨 위에서 아래로 쓸어내리면 닫힘 */
-    var sw = null, stage = q('cvStage'), sc = q('cvScroll');
-    sc.addEventListener('touchstart', function(e){
-      if (sc.scrollTop > 2 || cv.querySelector('.cv-slide.zoom') || e.touches.length > 1) { sw = null; return; }
-      sw = { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false };
-    }, { passive: true });
-    sc.addEventListener('touchmove', function(e){
-      if (!sw) return;
-      var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
-      if (!sw.on) { if (dy > 12 && dy > Math.abs(dx) * 1.4) sw.on = true; else if (Math.abs(dx) > 12 || dy < -8) { sw = null; return; } }
-      if (sw.on) { sw.dy = dy; stage.style.transform = 'translateY(' + dy * 0.6 + 'px)'; stage.style.opacity = String(Math.max(0.4, 1 - dy / 500)); }
-    }, { passive: true });
-    sc.addEventListener('touchend', function(){
-      if (sw && sw.on && sw.dy > 110) closeComic();
-      else { stage.style.transform = ''; stage.style.opacity = ''; }
-      sw = null;
-    });
-    /* 키보드: ← → 넘기기, Esc 닫기 (방의 다른 단축키는 막음) */
-    window.addEventListener('keydown', function(e){
-      if (cv.hidden) return;
-      var tag = e.target && e.target.tagName;
-      if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeComic(); return; }
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
-      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === ' ' || e.key === 'PageDown' || e.key === 'PageUp') { return; }
-      e.stopImmediatePropagation();
-    }, true);
-    /* 화면 크기가 바뀌면(폰 돌리기, 주소창 접힘) 다시 잼 */
-    var lastW = 0, lastH = 0;
-    var relayout = function(){
-      if (cv.hidden) return;
-      var w = window.innerWidth, h = window.visualViewport ? Math.round(window.visualViewport.height) : window.innerHeight;
-      if (w === lastW && Math.abs(h - lastH) < 2) return;   /* 크기가 그대로면 넘기는 중인 것을 건드리지 않음 */
-      lastW = w; lastH = h; layout();   /* layout이 지금(또는 가던) 장 위치를 그대로 지킴 */
-    };
-    window.addEventListener('resize', relayout);
-    window.addEventListener('orientationchange', function(){ setTimeout(relayout, 250); });
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', relayout);
-  }
-
+  function closeComic(){ if (viewingId != null) VW().close(); }
   /* ---------- 이벤트 ---------- */
   document.addEventListener('click', async function(e){
     var cb = e.target.closest('#agView [data-comic]');
@@ -503,16 +277,15 @@
     var art = all().find(function(x){ return x.id === id; });
     if (P.isPL() || !art.is_adult) { await loadAll(); }
     else { (comments[id] = comments[id] || []).push({ id: 0, target_id: id, name: name, body: text }); render(); }
-    if (V.art && V.art.id === id) { refreshViewer(); var vn = cv.querySelector('.ag-cf .n'); if (vn) vn.value = name; return; }
+    if (viewingId === id) { refreshViewer(); var vn = document.querySelector('#cv .ag-cf .n'); if (vn) vn.value = name; return; }
     var el = $('ag-' + id); if (el && el.tagName === 'DETAILS') { el.open = true; loadFull(el); var n = el.querySelector('.ag-cf .n'); if (n) n.value = name; }
   });
 
   /* 댓글을 달거나 지운 뒤: 보기 화면의 아래쪽만 새로 */
-  function refreshViewer(){ if (!V.art) return; var a = all().find(function(x){ return x.id === V.art.id; }); if (a) { V.art = a; renderUnder(); } }
+  function refreshViewer(){ if (viewingId != null) VW().refresh(); }
 
   var lastPL = null;
   function start(){
-    mountViewer();
     render();
     P.onAuth(function(){ var pl = P.isPL(); if (pl !== lastPL) { lastPL = pl; loadAll(); } });
     if (P.offline) { err = '서버에 연결하지 못했어요.'; render(); }

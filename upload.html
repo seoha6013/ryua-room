@@ -127,7 +127,19 @@ dialog{overflow-x:hidden}
 .pg.over{outline:3px dashed var(--ho2);outline-offset:2px}
 .badge.comic{background:var(--ho2soft)}
 
-/* 관리 목록 */
+/* 고르기 알약 (명장면/명예의 전당, 판정) */
+.seg{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.seg label{display:inline-flex!important;flex-direction:row!important;align-items:center;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label span{display:inline-flex;align-items:center;min-height:46px;padding:0 16px;border-radius:999px;border:1.5px solid var(--line);background:#fff;font-weight:800;font-size:15px}
+.seg input:checked+span{border-color:var(--ink);background:var(--ho1);box-shadow:0 3px 0 var(--ink)}
+.seg input:focus-visible+span{outline:3px solid var(--ink);outline-offset:2px}
+.seg.small label span{min-height:40px;padding:0 13px;font-size:14px}
+.seg .v-crit input:checked+span{background:#F6DE8A;border-color:#B8902A;box-shadow:0 3px 0 #B8902A}
+.seg .v-fumble input:checked+span{background:#DCCFF5;border-color:#6E50B8;box-shadow:0 3px 0 #6E50B8}
+.seg-l{font-weight:800;font-size:14px;margin-right:4px}
+.seg-l small{color:var(--ink3);font-weight:700}
+.badge.scene{background:var(--ho2soft)}.badge.dice{background:var(--ho1)}.badge.crit{background:#F6DE8A}.badge.fumble{background:#DCCFF5}/* 관리 목록 */
 .filter{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px}
 .filter button{min-height:38px;padding:0 14px;border:0;border-radius:999px;background:none;cursor:pointer;font-weight:800;font-size:13px}
 .filter button[aria-pressed="true"]{background:var(--ink);color:#fff}
@@ -195,6 +207,7 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
       <button class="tab" role="tab" id="t-post" data-tab="post" style="--d:var(--blush)">글 쓰기</button>
       <button class="tab" role="tab" id="t-art" data-tab="art" style="--d:var(--lav)">그림 올리기</button>
       <button class="tab" role="tab" id="t-log" data-tab="log" style="--d:var(--sky)">로그 올리기</button>
+      <button class="tab" role="tab" id="t-rec" data-tab="rec" style="--d:var(--ho1)">기록 올리기</button>
       <button class="tab" role="tab" id="t-manage" data-tab="manage" style="--d:var(--mint)">올린 것 고치기</button>
     </nav>
 
@@ -286,6 +299,48 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
       </div>
     </section>
 
+    <!-- ===== 기록 올리기 (명장면 · 주사위 명예의 전당) ===== -->
+    <section id="v-rec" role="tabpanel" aria-labelledby="t-rec" hidden>
+      <div class="card">
+        <h2>기록 올리기</h2>
+        <p class="sub">세션 캡처를 올려요. 한 장이면 한 장짜리 기록, 여러 장을 한꺼번에 올리면 한 묶음(옆으로 넘겨 보기)이 돼요. 글자 칸은 전부 비워도 올라가요.</p>
+        <div class="seg" role="radiogroup" aria-label="어디에 올릴까요">
+          <label><input type="radio" name="rtype" value="scene" checked><span>📘 명장면</span></label>
+          <label><input type="radio" name="rtype" value="dice"><span>🎲 주사위 명예의 전당</span></label>
+        </div>
+        <label class="drop" id="rdrop" tabindex="0" style="margin-top:12px">
+          <b>여기로 캡처를 끌어다 놓기</b>
+          <span>또는 눌러서 고르기 · 여러 장 = 한 묶음 · 파일 이름 숫자 순서로 정렬</span>
+          <input type="file" id="rfileIn" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="sr">
+        </label>
+        <div id="recBox" hidden>
+          <div class="modebar"><b id="recMode"></b><span id="recHint"></span><button class="btn sm" type="button" id="recClear">목록 비우기</button></div>
+          <ul class="pages" id="rpages" aria-label="올릴 장 (끌어서 순서 바꾸기)"></ul>
+          <form class="f" id="recMeta" novalidate style="margin-top:16px">
+            <div class="seg small" id="verdictBox" role="radiogroup" aria-label="판정 (선택)" hidden>
+              <span class="seg-l">판정 <small>(선택)</small></span>
+              <label><input type="radio" name="verdict" value="" checked><span>선택 안 함</span></label>
+              <label class="v-crit"><input type="radio" name="verdict" value="crit"><span>🌟 대성공</span></label>
+              <label class="v-fumble"><input type="radio" name="verdict" value="fumble"><span>💀 대실패</span></label>
+              <label><input type="radio" name="verdict" value="other"><span>기타</span></label>
+            </div>
+            <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인</b><small>체크하면 기록장의 성인 탭(비번)에만 보여요</small></span></label>
+            <label>접었을 때 보이는 문구 <small>비우면 날짜가 보여요</small><input name="fold_text" maxlength="120" autocomplete="off"></label>
+            <div class="grid3">
+              <label>시나리오 이름<input name="scenario" list="scList" maxlength="60" autocomplete="off"></label>
+              <label>회차<input name="session_no" type="number" min="0" max="999" inputmode="numeric"></label>
+              <label>날짜<input name="played_on" type="date"></label>
+            </div>
+          </form>
+          <div style="margin-top:14px">
+            <div class="prog" aria-hidden="true"><i id="rprogBar"></i></div>
+            <p class="err" id="recErr" role="alert"></p>
+            <div class="row end"><span class="saved" id="rupCount"></span><button class="btn ink" type="button" id="recGo">올리기</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== 올린 것 고치기 ===== -->
     <section id="v-manage" role="tabpanel" aria-labelledby="t-manage" hidden>
       <div class="card">
@@ -303,6 +358,10 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
         <h2>올린 로그</h2>
         <ul class="mlist" id="logList"></ul>
       </div>
+      <div class="card">
+        <h2>올린 기록 (명장면 · 명예의 전당)</h2>
+        <ul class="mlist" id="recList"></ul>
+      </div>
     </section>
   </div>
 </main>
@@ -319,6 +378,34 @@ dialog h2{margin:0 0 14px;font:400 22px 'Jua',sans-serif}
     <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인 그림</b><small>그림 보기의 성인 탭(비번)에만 보여요</small></span></label>
     <p class="err" id="artDlgErr" role="alert"></p>
     <div class="row end"><button class="btn" type="button" id="artDlgCancel">취소</button><button class="btn ink" type="submit" id="artDlgSave">저장</button></div>
+  </form>
+</dialog>
+
+<dialog id="recDlg" aria-labelledby="recDlgT">
+  <form class="f" id="recForm" method="dialog">
+    <h2 id="recDlgT">기록 고치기</h2>
+    <div class="seg" role="radiogroup" aria-label="어디에">
+      <label><input type="radio" name="rtype2" value="scene"><span>📘 명장면</span></label>
+      <label><input type="radio" name="rtype2" value="dice"><span>🎲 명예의 전당</span></label>
+    </div>
+    <div class="modebar"><b id="recEditMode"></b><label class="btn sm">+ 장 추가<input type="file" id="recEditAdd" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="sr"></label></div>
+    <ul class="pages small" id="recEditPages" aria-label="장 (끌어서 순서 바꾸기)"></ul>
+    <div class="seg small" id="verdictBox2" role="radiogroup" aria-label="판정 (선택)">
+      <span class="seg-l">판정</span>
+      <label><input type="radio" name="verdict2" value=""><span>선택 안 함</span></label>
+      <label class="v-crit"><input type="radio" name="verdict2" value="crit"><span>🌟 대성공</span></label>
+      <label class="v-fumble"><input type="radio" name="verdict2" value="fumble"><span>💀 대실패</span></label>
+      <label><input type="radio" name="verdict2" value="other"><span>기타</span></label>
+    </div>
+    <label class="adult"><input type="checkbox" name="is_adult"><span><b>성인</b><small>기록장의 성인 탭(비번)에만 보여요</small></span></label>
+    <label>접었을 때 보이는 문구 <small>비우면 날짜</small><input name="fold_text" maxlength="120"></label>
+    <div class="grid3">
+      <label>시나리오 이름<input name="scenario" list="scList" maxlength="60"></label>
+      <label>회차<input name="session_no" type="number" min="0" max="999" inputmode="numeric"></label>
+      <label>날짜<input name="played_on" type="date"></label>
+    </div>
+    <p class="err" id="recDlgErr" role="alert"></p>
+    <div class="row end"><button class="btn" type="button" id="recDlgCancel">취소</button><button class="btn ink" type="submit" id="recDlgSave">저장</button></div>
   </form>
 </dialog>
 
@@ -358,7 +445,8 @@ function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('on'
 let POSTS = [], ARTS = [], LOGS = [], FOLDERS = [], tab = 'post', filter = 'mine', started = false;
 
 /* ---------- 탭 ---------- */
-const TABS = ['post', 'art', 'log', 'manage'];
+const TABS = ['post', 'art', 'log', 'rec', 'manage'];
+let RECS = [];
 function setTab(t){
   tab = t;
   document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'));
@@ -369,17 +457,18 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 
 /* ---------- 불러오기 ---------- */
 async function loadAll(){
-  const [ps, as, ls, fs] = await Promise.all([
+  const [ps, as, ls, fs, rs] = await Promise.all([
     sb.from('posts').select('*').order('created_at', { ascending: false }),
     sb.from('artworks').select('*').order('created_at', { ascending: false }),
     sb.from('logs').select('*').order('created_at', { ascending: false }),
-    sb.from('folders').select('*').order('sort').order('id')
+    sb.from('folders').select('*').order('sort').order('id'),
+    sb.from('records').select('*').order('created_at', { ascending: false })
   ]);
-  const e = ps.error || as.error || ls.error || fs.error;
+  const e = ps.error || as.error || ls.error || fs.error || rs.error;
   if (e) { toast(P.msg(e)); return; }
-  POSTS = ps.data; ARTS = as.data; LOGS = ls.data; FOLDERS = fs.data;
+  POSTS = ps.data; ARTS = as.data; LOGS = ls.data; FOLDERS = fs.data; RECS = rs.data;
   fillChoices();
-  $('scList').innerHTML = [...new Set(LOGS.map(l => l.scenario))].map(n => `<option value="${esc(n)}">`).join('');
+  $('scList').innerHTML = [...new Set(LOGS.map(l => l.scenario).concat(RECS.map(r => r.scenario)).filter(Boolean))].map(n => `<option value="${esc(n)}">`).join('');
   fillFolders();
   if (tab === 'manage') renderManage();
 }
@@ -525,11 +614,12 @@ function dropZone(zone, input, onFiles){
   zone.addEventListener('drop', e => onFiles(e.dataTransfer.files));
 }
 /* 탭 아무 데나 놓아도 받기 */
-window.addEventListener('dragover', e => { if ((tab === 'art' || tab === 'log') && P.isPL()) e.preventDefault(); });
+window.addEventListener('dragover', e => { if ((tab === 'art' || tab === 'log' || tab === 'rec') && P.isPL()) e.preventDefault(); });
 window.addEventListener('drop', e => {
   if (!P.isPL()) return;
   if (tab === 'art' && !$('drop').contains(e.target)) { e.preventDefault(); addArts(e.dataTransfer.files); }
   if (tab === 'log' && !$('ldrop').contains(e.target)) { e.preventDefault(); addLogs(e.dataTransfer.files); }
+  if (tab === 'rec' && !$('rdrop').contains(e.target)) { e.preventDefault(); recEd.add(e.dataTransfer.files); }
 });
 
 /* ---------- 그림 · 만화: 장 고르기 편집기 (새로 올리기 · 고치기 같이 씀) ----------
@@ -610,15 +700,16 @@ function PageEditor(ul, onChange){
   return ed;
 }
 /* 장들을 올리고 경로 목록을 돌려줌. 만화는 긴 변 1600px(글씨가 읽히게), 한 장은 2400px */
-async function uploadPages(items, onStep){
-  const max = items.length > 1 ? 1600 : 2400, paths = [], fresh = [];
+async function uploadPages(items, onStep, opt){
+  opt = opt || {};
+  const max = opt.max || (items.length > 1 ? 1600 : 2400), folder = opt.folder || 'art', paths = [], fresh = [];
   try {
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       if (it.path) paths.push(it.path);
       else {
         const c = await P.compressImage(it.file, max);
-        const p = await P.uploadImage(c.blob, c.ext, 'art');
+        const p = await P.uploadImage(c.blob, c.ext, folder);
         paths.push(p); fresh.push(p);
       }
       onStep && onStep(i + 1, items.length);
@@ -791,12 +882,29 @@ function renderManage(){
     <span class="pdfs" aria-hidden="true">${l.pdf_path ? 'PDF' : '글'}</span>
     <span class="t"><b>${l.is_adult ? '<span class="badge">성인</span>' : ''}${esc(shown(l))}</b><small>${esc(l.scenario)} · ${dot(l.played_on) || '날짜 없음'}</small></span>
     ${acts('l', l.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 로그가 없어요.</li>';
+  const rs = RECS.filter(r => filter === 'all' || r.author === P.member.slot);
+  $('recList').innerHTML = rs.length ? rs.map(r => `<li>
+    <span class="who ${r.author || ''}" title="${(r.author || '').toUpperCase()} PL"></span>
+    <img src="${esc(pubUrl(r.image_path))}" alt="" loading="lazy">
+    <span class="t"><b><span class="badge ${r.type}">${RT_SHORT[r.type]}</span>${r.verdict && r.verdict !== 'other' ? `<span class="badge ${r.verdict}">${VERD[r.verdict]}</span>` : ''}${r.is_adult ? '<span class="badge">성인</span>' : ''}${(r.pages || []).length > 1 ? `<span class="badge comic">${r.pages.length}장</span>` : ''}${esc(r.fold_text || dot(r.played_on) || '(문구 없음)')}</b><small>${esc(r.scenario || '시나리오 없음')}${r.session_no != null ? ' · ' + r.session_no + '회' : ''} · ${dot(r.played_on) || '날짜 없음'}</small></span>
+    ${acts('r', r.id)}</li>`).join('') : '<li class="empty" style="border:0">아직 올린 기록이 없어요.</li>';
 }
 $('v-manage').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.pe) { editPost(+b.dataset.pe); return; }
   if (b.dataset.ae) { editArt(+b.dataset.ae); return; }
   if (b.dataset.le) { editLog(+b.dataset.le); return; }
+  if (b.dataset.re) { editRec(+b.dataset.re); return; }
+  if (b.dataset.rd) {
+    const r = RECS.find(x => x.id === +b.dataset.rd), n = (r.pages || []).length;
+    if (!confirm(`${RT[r.type]} 기록 「${r.fold_text || dot(r.played_on) || '문구 없음'}」${n > 1 ? `(${n}장 전부)` : ''}을(를) 지울까요? 되돌릴 수 없어요.`)) return;
+    const d = await sb.from('records').delete().eq('id', r.id);
+    if (d.error) { toast(P.msg(d.error)); return; }
+    const files = [...new Set((r.pages || []).concat(r.image_path ? [r.image_path] : []))];
+    if (files.length) await sb.storage.from('media').remove(files);
+    await sb.from('comments').delete().eq('target_type', 'record').eq('target_id', r.id);
+    toast('지웠어요'); loadAll(); return;
+  }
   if (b.dataset.pd) {
     const p = POSTS.find(x => x.id === +b.dataset.pd);
     if (!confirm(`글 「${p.title}」을(를) 지울까요? 되돌릴 수 없어요.`)) return;
@@ -903,10 +1011,98 @@ lf.addEventListener('submit', async e => {
   btn.disabled = false;
 });
 
-/* ---------- 주소로 바로 열기: #post #art #log #manage #edit-post=ID #edit-art=ID #edit-log=ID ---------- */
+/* =========================================================
+   기록 올리기: 명장면 · 주사위 명예의 전당 (이미지 중심, 글자 칸은 전부 선택)
+   ========================================================= */
+const RT = { scene: '명장면', dice: '주사위 명예의 전당' }, RT_SHORT = { scene: '명장면', dice: '명예의 전당' };
+const VERD = { crit: '대성공', fumble: '대실패', other: '기타' };
+const rm = $('recMeta');
+const radioVal = name => { const r = document.querySelector(`[name="${name}"]:checked`); return r ? r.value : ''; };
+const setRadio = (name, v) => { document.querySelectorAll(`[name="${name}"]`).forEach(r => { r.checked = r.value === (v || ''); }); };
+function syncRec(){
+  const n = recEd.items.length, type = radioVal('rtype');
+  $('verdictBox').hidden = type !== 'dice';
+  $('recBox').hidden = !n;
+  $('recMode').textContent = n > 1 ? `${n}장 묶음` : '한 장';
+  $('recHint').textContent = n > 1 ? '끌거나 ◀ ▶로 순서 바꾸기 · ★ 표지 고르기 · ✕ 빼기' : '더 올리면 여러 장이 한 묶음이 돼요';
+  $('recGo').textContent = `${RT_SHORT[type]}에 올리기` + (n > 1 ? ` (${n}장)` : '');
+  $('recGo').disabled = !n || uploading;
+}
+const recEd = PageEditor($('rpages'), syncRec);
+document.querySelectorAll('[name="rtype"]').forEach(r => r.addEventListener('change', syncRec));
+dropZone($('rdrop'), $('rfileIn'), files => recEd.add(files));
+$('recClear').addEventListener('click', () => { if (!uploading) { recEd.clear(); $('rprogBar').style.width = '0'; } });
+rm.played_on.value = today();
+const recRow = (f, type, verdict) => ({
+  type, fold_text: f.fold_text.value.trim(), scenario: f.scenario.value.trim(),
+  session_no: f.session_no.value === '' ? null : Math.max(0, Math.min(999, +f.session_no.value)),
+  played_on: f.played_on.value || null, verdict: type === 'dice' ? (verdict || null) : null, is_adult: f.is_adult.checked
+});
+$('recGo').addEventListener('click', async () => {
+  const items = recEd.items.slice(); if (!items.length) return;
+  const type = radioVal('rtype');
+  uploading = true; $('recGo').disabled = true; $('recErr').textContent = ''; $('rprogBar').style.width = '0';
+  let fresh = [];
+  try {
+    const r = await uploadPages(items, (k, t) => { $('rprogBar').style.width = Math.round(k / t * 100) + '%'; $('rupCount').textContent = `${k} / ${t}장 올리는 중…`; }, { folder: 'records', max: 1600 });
+    fresh = r.fresh;
+    const row = Object.assign(recRow(rm, type, radioVal('verdict')), { author: P.member.slot, pages: r.paths, image_path: r.paths[recEd.coverIndex()] });
+    const ins = await sb.from('records').insert(row);
+    if (ins.error) throw ins.error;
+    toast(`${RT_SHORT[type]}에 올렸어요` + (items.length > 1 ? ` (${items.length}장)` : ''));
+    recEd.clear(); const keepSc = rm.scenario.value; rm.reset(); rm.scenario.value = keepSc; rm.played_on.value = today(); setRadio('verdict', '');
+    $('rupCount').textContent = ''; loadAll();
+  } catch (err) {
+    if (fresh.length) await sb.storage.from('media').remove(fresh);
+    $('recErr').textContent = P.msg(err); $('rupCount').textContent = '';
+  }
+  uploading = false; syncRec();
+});
+
+/* 기록 고치기 */
+const rdlg = $('recDlg'), rf = $('recForm'); let recEditing = null;
+const recEditEd = PageEditor($('recEditPages'), ed => { const n = ed.items.length; $('recEditMode').textContent = n > 1 ? `${n}장 묶음` : n === 1 ? '한 장' : '장이 없어요'; });
+const syncRec2 = () => { $('verdictBox2').hidden = radioVal('rtype2') !== 'dice'; };
+document.querySelectorAll('[name="rtype2"]').forEach(r => r.addEventListener('change', syncRec2));
+function editRec(id){
+  const r = RECS.find(x => x.id === id); if (!r) { toast('그 기록을 찾지 못했어요'); return; }
+  recEditing = r;
+  recEditEd.load((r.pages && r.pages.length ? r.pages : [r.image_path]).filter(Boolean), r.image_path);
+  setRadio('rtype2', r.type); setRadio('verdict2', r.verdict || ''); syncRec2();
+  rf.fold_text.value = r.fold_text || ''; rf.scenario.value = r.scenario || ''; rf.session_no.value = r.session_no == null ? '' : r.session_no;
+  rf.played_on.value = r.played_on || ''; rf.is_adult.checked = r.is_adult; $('recDlgErr').textContent = '';
+  rdlg.showModal();
+}
+$('recEditAdd').addEventListener('change', e => { recEditEd.add(e.target.files); e.target.value = ''; });
+$('recDlgCancel').addEventListener('click', () => { recEditEd.clear(true); rdlg.close(); });
+rf.addEventListener('submit', async e => {
+  e.preventDefault();
+  const r = recEditing, btn = $('recDlgSave'), items = recEditEd.items.slice();
+  if (!items.length) { $('recDlgErr').textContent = '한 장 이상 있어야 해요. 다 지우려면 목록의 "삭제"를 눌러 주세요.'; return; }
+  btn.disabled = true; $('recDlgErr').textContent = '';
+  let fresh = [];
+  try {
+    const up = await uploadPages(items, (k, t) => { btn.textContent = `올리는 중 ${k}/${t}`; }, { folder: 'records', max: 1600 });
+    fresh = up.fresh;
+    const row = Object.assign(recRow(rf, radioVal('rtype2'), radioVal('verdict2')), { pages: up.paths, image_path: up.paths[recEditEd.coverIndex()] });
+    const u = await sb.from('records').update(row).eq('id', r.id);
+    if (u.error) throw u.error;
+    const gone = [...new Set((r.pages || []).concat(r.image_path ? [r.image_path] : []))].filter(p => !up.paths.includes(p));
+    if (gone.length) await sb.storage.from('media').remove(gone);
+    recEditEd.clear(true); rdlg.close(); toast('고쳤어요'); loadAll();
+  } catch (err) {
+    if (fresh.length) await sb.storage.from('media').remove(fresh);
+    $('recDlgErr').textContent = P.msg(err);
+  }
+  btn.disabled = false; btn.textContent = '저장';
+});
+
+/* ---------- 주소로 바로 열기: #post #art #log #rec #rec-scenes #rec-dice #manage #edit-post=ID #edit-art=ID #edit-log=ID #edit-rec=ID ---------- */
 function fromHash(){
-  const h = location.hash.slice(1), m = h.match(/^edit-(post|art|log)=(\d+)$/);
-  if (m) { if (m[1] === 'post') editPost(+m[2]); else { setTab('manage'); (m[1] === 'art' ? editArt : editLog)(+m[2]); } return; }
+  const h = location.hash.slice(1), m = h.match(/^edit-(post|art|log|rec)=(\d+)$/);
+  if (m) { if (m[1] === 'post') editPost(+m[2]); else { setTab('manage'); ({ art: editArt, log: editLog, rec: editRec })[m[1]](+m[2]); } return; }
+  const rt = h.match(/^rec-(scenes|dice)$/);
+  if (rt) { setRadio('rtype', rt[1] === 'dice' ? 'dice' : 'scene'); syncRec(); setTab('rec'); return; }
   setTab(TABS.includes(h) ? h : 'post');
 }
 window.addEventListener('hashchange', () => { if (started) fromHash(); });
