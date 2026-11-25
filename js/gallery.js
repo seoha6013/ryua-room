@@ -168,11 +168,43 @@
     r[1].data.forEach(function(c){ (comments[c.target_id] = comments[c.target_id] || []).push(c); });
     if (!P.isPL() && adultPw !== null) { try { await loadAdult(adultPw); } catch (x) {} }
     render();
-    /* 처음엔 가장 최근 그림을 액자에 걸어 둠 */
-    var first = ARTS.filter(function(a){ return !a.is_adult; }).sort(function(x, y){ return dayOf(y) < dayOf(x) ? -1 : 1; })[0];
-    if (first && !hung) { hung = true; hang(first); }
+    /* 처음엔 PL이 고른 액자 사진(settings 'frame_image'), 없으면 가장 최근 그림을 걸어 둠 */
+    if (!hung) { hung = true; hangDefault(); }
   }
   var hung = false;
+  function latestArt(){
+    return ARTS.filter(function(a){ return !a.is_adult; }).sort(function(x, y){ return dayOf(y) < dayOf(x) ? -1 : 1; })[0];
+  }
+  async function hangDefault(){
+    var p = null;
+    try { var r = await P.sb.from('settings').select('value').eq('key', 'frame_image').maybeSingle(); p = r.data && r.data.value && r.data.value.path; } catch (x) {}
+    if (p) { hang({ id: 'frame:' + p, image_path: p }); return; }
+    var first = latestArt(); if (first) hang(first);
+  }
+
+  /* ---------- 액자 사진 고르기 (PL) ---------- */
+  async function setFrame(path){
+    var old = await P.sb.from('settings').select('value').eq('key', 'frame_image').maybeSingle();
+    var r = await P.sb.from('settings').upsert({ key: 'frame_image', value: path ? { path: path } : null });
+    if (r.error) { $('frameMsg').textContent = P.msg(r.error); if (path) P.sb.storage.from('media').remove([path]); return; }
+    var oldPath = old.data && old.data.value && old.data.value.path;
+    if (oldPath && oldPath !== path) P.sb.storage.from('media').remove([oldPath]);
+    if (path) hang({ id: 'frame:' + path, image_path: path });
+    else { var first = latestArt(); if (first) hang(first); }
+    $('frameMsg').textContent = path ? '액자 사진을 바꿨어요. 모든 방문자에게 보여요.' : '액자를 가장 최근 그림으로 돌렸어요.';
+  }
+  document.addEventListener('click', function(e){
+    if (!e.target.closest) return;
+    if (e.target.closest('#framePick')) $('frameFile').click();
+    else if (e.target.closest('#frameReset')) setFrame(null);
+  });
+  document.addEventListener('change', async function(e){
+    var ff = e.target; if (ff.id !== 'frameFile') return;
+    var file = ff.files[0]; ff.value = ''; if (!file) return;
+    $('frameMsg').textContent = '올리는 중…';
+    try { var c = await P.compressImage(file, 1600); var path = await P.uploadImage(c.blob, c.ext, 'frame'); await setFrame(path); }
+    catch (x) { $('frameMsg').textContent = P.msg(x); }
+  });
   async function loadAdult(pw){
     var r = await Promise.all([P.sb.rpc('adult_artworks', { pw: pw }), P.sb.rpc('adult_art_comments', { pw: pw })]);
     if (r[0].error) throw r[0].error;
