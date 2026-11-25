@@ -1,6 +1,6 @@
 /* 액자 = 그림 백업. 서버(artworks)에서 그림을 불러와 HO1 PL / HO2 PL 탭으로 보여 줌.
    달마다 묶음(접기/펼치기) → 그림 카드(접기/펼치기) → 큰 그림 + 댓글.
-   펼친 그림은 방 안 액자에도 걸림. 성인 그림은 PL이거나 성인 비번을 넣었을 때만 보임. */
+   방 안 액자는 PL이 고른 사진(없으면 최근 그림)으로 고정. 성인 그림은 PL이거나 성인 비번을 넣었을 때만 보임. */
 (function(){
   'use strict';
   var P = window.PUBAM;
@@ -244,7 +244,6 @@
       under: function(){ return underHTML(all().find(function(x){ return x.id === a.id; }) || a); },
       onClose: function(){ viewingId = null; }
     });
-    hang(a);
   }
   function closeComic(){ if (viewingId != null) VW().close(); }
   /* ---------- 이벤트 ---------- */
@@ -278,15 +277,13 @@
       closeComic(); loadAll();
     }
   });
-  /* 펼칠 때: 큰 그림 불러오고 방 안 액자에 걸기 */
+  /* 펼칠 때: 큰 그림 불러오기 (방 안 액자는 고정이라 안 바뀜) */
   document.addEventListener('toggle', function(e){
     var d = e.target;
     if (!d.closest || !d.closest('#agView')) return;
     if (d.classList.contains('ag-group')) { openGroups[d.dataset.g] = d.open; return; }
     if (d.classList.contains('ag-art') && d.open) {
-      var a = all().find(function(x){ return x.id === +d.dataset.id; });
-      var im = loadFull(d);
-      if (a && im) hang(a, im);
+      loadFull(d);
     }
   }, true);
   document.addEventListener('submit', async function(e){
