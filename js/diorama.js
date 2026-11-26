@@ -1150,8 +1150,8 @@ function boot(){
     }
   };
   const bathFx = { k: 0, bubT: 0, talkT: 0, talk: 0, q: [], t: 0, soak: 0, hot: false, was: false, water: -1, foam: 0, duck: { y: 0, v: 0, spin: 0 } };
-  const BATH_TEXT = [['따끈따끈~', '♨'], ['개운하다!', '♥'], ['거품 봐!', '…후우.'], ['노래 부를까?', '♪'], ['오리 귀엽지?', '응.'], ['여기가 천국이야~', '…좋네.']];
-  const BATH_WATER = [['보글보글~', '♪'], ['거품 더 넣을까?', '이미 많은데.'], ['비눗방울 크다!', '…예쁘네.'], ['후~ 불어 볼래?', '후.']];
+  const BATH_TEXT = [['따끈따끈~', '♨'], ['개운하다!', '♥'], ['거품 봐!', '…후우.'], ['노래 부를까?', '♪'], ['오리 귀엽지?', '네.'], ['여기가 천국이야~', '…좋네요.']];
+  const BATH_WATER = [['보글보글~', '♪'], ['거품 더 넣을까?', '이미 많은데요.'], ['비눗방울 크다!', '…예쁘네요.'], ['후~ 불어 볼래?', '후.']];
   const pickOne = a => a[Math.floor(Math.random() * a.length)];
   /* 욕조 반응: 순서대로 일어날 일을 줄 세워 두고(q) stepBath에서 시간 맞춰 실행. 나오면 다 취소 */
   const bathSaid = new Set();
@@ -1188,7 +1188,7 @@ function boot(){
     bun.expr = 'smile'; bsay('ho1', pickOne(['에잇!', '물 공격~!', '받아라!']), 'ok', 1.4);
     splashAt(bun, bun2); Bus.audio.drop(1); bun.squash.v -= 2;
     bathLater(0.55, () => { bun2.expr = 'yuck'; shake(bun2, 0.6); bsay('ho2', '…!', 'emo', 1.1); });
-    bathLater(1.5, () => { bun2.expr = 'smile'; splashAt(bun2, bun); Bus.audio.drop(2); bun2.squash.v -= 2; bsay('ho2', pickOne(['반격.', '받아.', '두 배로.']), 'emo', 1.3); });
+    bathLater(1.5, () => { bun2.expr = 'smile'; splashAt(bun2, bun); Bus.audio.drop(2); bun2.squash.v -= 2; bsay('ho2', pickOne(['반격입니다.', '받으세요.', '두 배로 돌려드릴게요.']), 'emo', 1.3); });
     bathLater(2.05, () => { bun.expr = 'yuck'; shake(bun, 0.6); bsay('ho1', '으앗, 차가워!', 'bad', 1.5); });
     bathLater(3.3, () => { bun.expr = 'smile'; spawnHearts(1); bsay('ho1', '하하하!', 'ok', 1.4); });
     bathLater(4.4, () => { bun.expr = null; bun2.expr = null; });
@@ -1197,10 +1197,10 @@ function boot(){
   function bathFoamHat(){
     const st = bathFx.foam; bathFx.foam = (st + 1) % 3;
     if (st === 0) {
-      bun2.expr = 'smile'; bsay('ho2', '가만히 있어 봐.', 'emo', 1.4); Bus.audio.poof();
+      bun2.expr = 'smile'; bsay('ho2', '가만히 계세요.', 'emo', 1.4); Bus.audio.poof();
       bathLater(0.5, () => { bun.foamOn = true; bubbleBurst(headOf(bun).add(new V3(0, 0.55, 0)), 4); Bus.audio.chime(); });
       bathLater(1.3, () => { bun.expr = 'smile'; bsay('ho1', '이게 뭐야~?', 'ok', 1.5); });
-      bathLater(2.4, () => { spawnHearts(1, 'ho2'); bsay('ho2', '잘 어울려.', 'emo', 1.5); });
+      bathLater(2.4, () => { spawnHearts(1, 'ho2'); bsay('ho2', '잘 어울리세요.', 'emo', 1.5); });
       bathLater(3.6, () => { bun.expr = null; bun2.expr = null; });
     } else if (st === 1) {
       bun.expr = 'smile'; bsay('ho1', '나도 해 줄게!', 'ok', 1.4); Bus.audio.poof();
@@ -1220,7 +1220,7 @@ function boot(){
     const D = bathFx.duck; D.v = reduced() ? 1.2 : 2.4; D.spin = Math.PI * 2;
     Bus.audio.drop(3); bubbleBurst(bathDuck.getWorldPosition(new V3()), 5);
     bun.expr = 'smile'; bsay('ho1', '꽥꽥!', 'ok', 1.3);
-    bathLater(0.8, () => bsay('ho2', pickOne(['…귀엽네.', '꽥.', '이름 있어?']), 'emo', 1.5));
+    bathLater(0.8, () => bsay('ho2', pickOne(['…귀엽네요.', '꽥.', '이름 있어요?']), 'emo', 1.5));
     bathLater(2.2, () => { bun.expr = null; });
   }
   /* 물·거품·욕조 누름: 비눗방울이 뭉게뭉게 + 한마디씩 */
@@ -1260,7 +1260,7 @@ function boot(){
       if (!bathFx.hot && bathFx.soak > 40 && !bathBusy()) {
         bathFx.hot = true; bathFx.talkT = Math.max(bathFx.talkT, 8);
         bun.expr = 'yuck'; bsay('ho1', '머리가 핑~…', 'bad', 1.8);
-        bathLater(1.0, () => bsay('ho2', '얼굴 빨개. 이제 나갈까?', 'emo', 2));
+        bathLater(1.0, () => bsay('ho2', '얼굴 빨개요. 이제 나갈까요?', 'emo', 2));
         bathLater(2.8, () => { bun.expr = null; });
       }
     } else if (bathFx.was && !seat.on) {                 /* 나오면 반응 취소·정리 */
@@ -1449,7 +1449,7 @@ function boot(){
      ========================================================= */
   const COOK_TEXT = {                                   /* 화면 문구: 여기만 바꾸면 됨 */
     ask: '누가 구울까?', ho1: '류스케(HO1)가 굽기', ho2: '아키사(HO2)가 굽기', cancel: '취소',
-    success: '성공!', fail: '…탔다.', yum: '맛있다!', bitter: '…으윽.', hint: '🍪 쿠키를 눌러 봐'
+    success: '성공!', success2: '성공했어요!', fail: '…탔네요.', yum: '맛있다!', bitter: '…으윽.', hint: '🍪 쿠키를 눌러 봐'
   };
   const COOK = { spot: wpos(kitchen, 0.27, 0, 1.0), watch: wpos(kitchen, -0.6, 0, 1.35) };   /* 굽는 자리 · 지켜보는 자리 (주방을 옮기면 따라감) */
   const cook = { on: false, who: null, t: 0, ready: false, a1: false, a2: false, wait: 0, ticks: 0, result: null, eat: null };
@@ -1631,7 +1631,7 @@ function boot(){
       const mouth = kitchen.localToWorld(new V3(0.265, 0.45, 0.45));
       if (cook.result === 'good') {
         Bus.audio.chime(); setTimeout(() => Bus.audio.chime(), 180);    /* 띵 */
-        say(cook.who, COOK_TEXT.success, 'ok', 2.6);
+        say(cook.who, cook.who === 'ho2' ? COOK_TEXT.success2 : COOK_TEXT.success, 'ok', 2.6);
         twinkle(reduced() ? 6 : 14, mouth.clone().add(new V3(0, 0.3, 0)));
         hop(4.0); hopBud(4.0);
         spawnHearts(reduced() ? 1 : 3); spawnHearts(reduced() ? 1 : 2, 'ho2');
