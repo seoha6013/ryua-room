@@ -1501,7 +1501,7 @@ function boot(){
     '.cook-menu button.h1{background:#F2E6A0}.cook-menu button.h2{background:#DDE3F5}.cook-menu button.x{border-color:#D9D5E3;color:#6E6878}' +
     '.cook-menu::after{content:"";position:absolute;left:50%;bottom:-9px;width:14px;height:14px;background:#fff;border-right:1.5px solid #1F1B24;border-bottom:1.5px solid #1F1B24;transform:translateX(-50%) rotate(45deg)}' +
     '.cook-bub{position:fixed;z-index:30;left:0;top:0;transform:translate(-50%,-100%);padding:6px 14px;border-radius:999px;background:#fff;border:1.5px solid #1F1B24;box-shadow:0 3px 0 #1F1B24;font:900 16px Nunito,"Gowun Dodum",sans-serif;color:#1F1B24;white-space:nowrap;pointer-events:none}' +
-    '.cook-bub.ok{background:#F6DE8A}.cook-bub.bad{background:#DCCFF5}.cook-bub.emo{background:none;border:0;box-shadow:none;font-size:26px;padding:0}' +
+    '.cook-bub.ok{background:#F6DE8A}.cook-bub.bad{background:#DCCFF5}.cook-bub.emo{background:none;border:0;box-shadow:none;font-size:26px;padding:0}.cook-bub.ho2{background:#CDE6FF}' +
     'body.layout-edit .cook-menu,body.layout-edit .cook-bub,body:not([data-mode="room"]) .cook-menu,body:not([data-mode="room"]) .cook-bub{display:none}';
   document.head.appendChild(cookCss);
   const cookMenu = document.createElement('div');
@@ -1511,7 +1511,8 @@ function boot(){
   const bubs = { ho1: document.createElement('div'), ho2: document.createElement('div') };
   Object.values(bubs).forEach(b => { b.className = 'cook-bub'; b.hidden = true; b.setAttribute('role', 'status'); document.body.appendChild(b); });
   const bubT = { ho1: 0, ho2: 0 };
-  function say(who, text, cls, secs){ const b = bubs[who]; b.textContent = text; b.className = 'cook-bub' + (cls ? ' ' + cls : ''); b.hidden = false; bubT[who] = secs || 0; }
+  function say(who, text, cls, secs){ if (who === 'ho2') cls = 'ho2';   /* HO2 대사는 늘 연한 파랑 말풍선 */
+    const b = bubs[who]; b.textContent = text; b.className = 'cook-bub' + (cls ? ' ' + cls : ''); b.hidden = false; bubT[who] = secs || 0; }
   function hush(who){ bubs[who].hidden = true; bubT[who] = 0; }
   cookMenu.addEventListener('click', e => {
     const b = e.target.closest('[data-bake]'); if (!b) return;
