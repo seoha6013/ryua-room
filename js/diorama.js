@@ -381,6 +381,56 @@ function boot(){
   }
   table.scale.setScalar(1.3);                                                          /* 캐릭터 크기에 맞게 */
 
+  /* 욕조: 누르면 HO1·HO2가 같이 들어가 마주 보고 씻음 (거품·비눗방울·고무 오리). 아무 데나 누르면 나옴 */
+  const BATH = { x: -1.5, z: 3.7 };
+  const bath = new THREE.Group(); bath.position.set(BATH.x, FLOOR, BATH.z); scene.add(bath);
+  const bathFoam = [], bathBubbles = [];
+  let bathWater, bathDuck;
+  {
+    const g = bath, shell = 0xFFFFFF, gold = 0xF2D27A, L = 1.9, W = 1.08, H = 0.62, T = 0.1;
+    const walls = [
+      put(rbox(L, H, T, 0.05, shell), 0, H / 2 + 0.12, -W / 2 + T / 2, g),
+      put(rbox(L, H, T, 0.05, shell), 0, H / 2 + 0.12, W / 2 - T / 2, g),
+      put(rbox(T, H, W, 0.05, shell), -L / 2 + T / 2, H / 2 + 0.12, 0, g),
+      put(rbox(T, H, W, 0.05, shell), L / 2 - T / 2, H / 2 + 0.12, 0, g),
+      put(rbox(L, 0.1, W, 0.05, shell), 0, 0.17, 0, g)                                 /* 바닥 */
+    ];
+    put(rbox(L + 0.06, 0.06, 0.12, 0.03, 0xFFD1DC), 0, H + 0.12, -W / 2 + T / 2, g);   /* 분홍 테두리 */
+    put(rbox(L + 0.06, 0.06, 0.12, 0.03, 0xFFD1DC), 0, H + 0.12, W / 2 - T / 2, g);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(q => put(sph(0.08, gold, { metalness: 0.3, roughness: 0.4 }, 14), q[0] * (L / 2 - 0.18), 0.08, q[1] * (W / 2 - 0.15), g));   /* 금빛 발 */
+    /* 수도꼭지 (HO2 쪽 끝 벽 위) */
+    const chrome = { metalness: 0.5, roughness: 0.3 };
+    put(cyl(0.035, 0.035, 0.3, 0xD7DCE6, chrome, 12), L / 2 - 0.05, H + 0.27, 0, g).castShadow = false;
+    const spout = put(cyl(0.03, 0.03, 0.22, 0xD7DCE6, chrome, 12), L / 2 - 0.15, H + 0.4, 0, g); spout.rotation.z = Math.PI / 2;
+    [-0.1, 0.1].forEach(z => put(sph(0.05, z < 0 ? 0xF2E6A0 : 0x9FD8FF, null, 12), L / 2 - 0.05, H + 0.35, z, g));   /* 손잡이: 노랑·파랑 */
+    /* 물: 반투명 하늘색 (몸이 물에 잠겨 보이게) */
+    bathWater = put(rbox(L - 0.18, 0.05, W - 0.18, 0.02, 0x9FD8FF, { transparent: true, opacity: 0.72, emissive: 0x9FD8FF, emissiveIntensity: 0.25, roughness: 0.15 }), 0, 0.52, 0, g);
+    bathWater.castShadow = false;
+    /* 거품: 들어가면 부풀어 오름 */
+    for (let i = 0; i < 22; i++) {
+      const a = i * 2.399, r = 0.25 + (i % 5) * 0.08;
+      const f = put(sph(0.09 + (i % 3) * 0.035, COL.white, { roughness: 0.55, emissive: 0xFFFFFF, emissiveIntensity: 0.15 }, 14),
+        clamp(Math.cos(a) * r * 1.9, -L / 2 + 0.2, L / 2 - 0.2), 0.57, clamp(Math.sin(a) * r, -W / 2 + 0.18, W / 2 - 0.18), g);
+      f.castShadow = false; f.scale.setScalar(0.001); f.visible = false; f.userData.seed = i;
+      bathFoam.push(f);
+    }
+    /* 고무 오리 */
+    bathDuck = new THREE.Group(); bathDuck.position.set(0, 0.56, 0.18); g.add(bathDuck);
+    const db = put(sph(0.1, 0xFFE27A, null, 18), 0, 0.03, 0, bathDuck); db.scale.set(1.25, 0.8, 1);
+    put(sph(0.065, 0xFFE27A, null, 16), 0.07, 0.12, 0, bathDuck);
+    const beak = put(sph(0.03, 0xF4A04A, null, 10), 0.13, 0.11, 0, bathDuck); beak.scale.set(1.4, 0.6, 1);
+    [-1, 1].forEach(sd => put(sph(0.012, COL.ink, null, 8), 0.115, 0.14, sd * 0.035, bathDuck));
+    bathDuck.rotation.y = -0.6;
+    g.userData.paint = walls;
+  }
+  bath.scale.setScalar(1.2);
+  /* 떠오르는 비눗방울 */
+  for (let i = 0; i < 12; i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), mat(0xE8F6FF, { transparent: true, opacity: 0.55, emissive: 0xBFE6FF, emissiveIntensity: 0.4, roughness: 0.1 }));
+    m.visible = false; m.castShadow = false; scene.add(m);
+    bathBubbles.push({ m, life: 0, max: 2, alive: false, vel: new V3(), sz: 1 });
+  }
+
   /* 작은 주방: 싱크대 + 가스레인지(조리대). 뒷벽 TV와 서랍장 사이 */
   const KITCHEN = { x: -0.22, z: -4.56 };
   const kitchen = new THREE.Group(); kitchen.position.set(KITCHEN.x, FLOOR, KITCHEN.z); scene.add(kitchen);
@@ -1074,13 +1124,33 @@ function boot(){
     table: {
       slots: [wpos(table, -0.82, 0.43, 0), wpos(table, 0.82, 0.43, 0)], yaw: [Math.PI / 2, -Math.PI / 2],
       stand: [wpos(table, -0.85, 0, -0.9), wpos(table, 0.85, 0, -0.9)]   /* 러그 쪽(열린 쪽)에서 다가감 */
+    },
+    bath: {   /* 욕조 양 끝에 마주 보고 앉음 (HO1 = 왼쪽, HO2 = 수도꼭지 쪽) */
+      slots: [wpos(bath, -0.5, 0.2, 0), wpos(bath, 0.5, 0.2, 0)], yaw: [Math.PI / 2, -Math.PI / 2],
+      stand: [wpos(bath, -0.45, 0, 1.05), wpos(bath, 0.45, 0, 1.05)]   /* 앞(방 쪽 긴 면)에서 다가감 */
     }
   };
+  const bathFx = { k: 0, bubT: 0, talkT: 0, talk: 0 };
+  const BATH_TEXT = [['따끈따끈~', '♨'], ['개운하다!', '♥'], ['거품 봐!', '…후우.']];
   Object.values(SEATS).forEach(S => { S.yaw0 = S.yaw.slice(); });
   function sitDown(where){
     if (seat.on || sleep.on || seat.k > 0 || Bus.mode !== 'room' || fl.active) return;
     const S = SEATS[where];
-    walkTo(S.stand[0].x, S.stand[0].z, S.yaw[0], () => { seat.where = where; seat.on = true; Bus.audio.hop(); if (where === 'table') tableHint(); });
+    seatWalk(S, 0, () => { seat.where = where; seat.on = true; Bus.audio.hop(); if (where === 'table') tableHint(); if (where === 'bath') { Bus.audio.poof(); bathFx.talkT = 0.9; } });
+  }
+  /* 앉을 자리까지 걸어감. 가구에 막혀 멀리서 멈추면 옆으로 돌아가는 길(경유지)을 잡아 다시 감 (최대 3번) */
+  function seatWalk(S, tries, done){
+    const goal = S.stand[0];
+    walkTo(goal.x, goal.z, S.yaw[0], () => {
+      const dx = goal.x - bun.pos.x, dz = goal.z - bun.pos.z, d = Math.hypot(dx, dz);
+      if (d < 0.6 || tries >= 3) { done(); return; }
+      const ux = dx / d, uz = dz / d;
+      const cands = [1, -1].map(sd => resolve(new V3(bun.pos.x - uz * 1.6 * sd + ux * 0.6, 0, bun.pos.z + ux * 1.6 * sd + uz * 0.6)));
+      const len = c => Math.hypot(c.x - bun.pos.x, c.z - bun.pos.z) + Math.hypot(goal.x - c.x, goal.z - c.z);
+      let c = len(cands[0]) <= len(cands[1]) ? cands[0] : cands[1];
+      if (tries % 2) c = c === cands[0] ? cands[1] : cands[0];      /* 두 번째엔 반대쪽으로 */
+      walkTo(c.x, c.z, null, () => seatWalk(S, tries + 1, done));
+    });
   }
   function standUp(){
     if (!seat.on) return;
@@ -1516,7 +1586,8 @@ function boot(){
     { x: KITCHEN.x - 0.27, z: KITCHEN.z, r: 0.4 }, { x: KITCHEN.x + 0.27, z: KITCHEN.z, r: 0.4 },   /* 주방 */
     { x: FRIDGE.x, z: FRIDGE.z, r: 0.45 },                                            /* 냉장고 */
     { x: SHELF.x, z: SHELF.z, r: 0.5 },                                               /* 책장 */
-    { x: LAMP.x, z: LAMP.z, r: 0.3 }                                                  /* 조명 */
+    { x: LAMP.x, z: LAMP.z, r: 0.3 },                                                 /* 조명 */
+    { x: BATH.x - 0.55, z: BATH.z, r: 0.68 }, { x: BATH.x + 0.55, z: BATH.z, r: 0.68 }   /* 욕조 */
   ];
   const BOUND = 4.45, BUN_R = 0.42;
   function resolve(p){
@@ -1743,7 +1814,7 @@ function boot(){
   B2.bunny.traverse(o => { if (o.isMesh) pickables.push(o); });
   bed.traverse(o => { if (o.isMesh) pickables.push(o); });
   /* 눌러서 쓰는 가구: 소파(앉기) · 식탁(앉기) · 냉장고(문) · 화분(물 주기) */
-  [[sofa, 'sofa'], [table, 'table'], [fridge, 'fridge'], [plant, 'plant'], [kitchen, 'kitchen']].forEach(([g, tag]) => g.traverse(o => { o.userData.use = tag; if (o.isMesh) pickables.push(o); }));
+  [[sofa, 'sofa'], [table, 'table'], [bath, 'bath'], [fridge, 'fridge'], [plant, 'plant'], [kitchen, 'kitchen']].forEach(([g, tag]) => g.traverse(o => { o.userData.use = tag; if (o.isMesh) pickables.push(o); }));
   function sectionOf(o){ while (o) { if (o.userData.section) return o.userData.section; o = o.parent; } return null; }
   function pick(cx, cy){
     ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
@@ -1791,7 +1862,7 @@ function boot(){
     else if (h.type === 'bunny') jumpAction();
     else if (h.type === 'buddy') { hopBud(4.4); Bus.audio.hop(); }
     else if (h.type === 'bed') goSleep();
-    else if (h.type === 'sofa' || h.type === 'table') sitDown(h.type);
+    else if (h.type === 'sofa' || h.type === 'table' || h.type === 'bath') sitDown(h.type);
     else if (h.type === 'fridge') toggleFridge();
     else if (h.type === 'plant') { sprout.g.v += 1.5; goWater(); }
     else if (h.type === 'kitchen') openCookMenu();
@@ -1861,6 +1932,7 @@ function boot(){
   movable('table', '식탁', table, 1.2, [obstDep(findObst(TABLE.x, TABLE.z)), obstDep(findObst(TABLE.x - 1.07, TABLE.z)), obstDep(findObst(TABLE.x + 1.07, TABLE.z)), ...seatDeps(SEATS.table)]);
   movable('kitchen', '주방', kitchen, 0.75, [obstDep(findObst(KITCHEN.x - 0.27, KITCHEN.z)), obstDep(findObst(KITCHEN.x + 0.27, KITCHEN.z)), vecDep(COOK.spot), vecDep(COOK.watch)]);
   movable('fridge', '냉장고', fridge, 0.55, [obstDep(findObst(FRIDGE.x, FRIDGE.z)), spotDep(FRIDGE_SPOT)]);
+  movable('bath', '욕조', bath, 1.2, [obstDep(findObst(BATH.x - 0.55, BATH.z)), obstDep(findObst(BATH.x + 0.55, BATH.z)), ...seatDeps(SEATS.bath)]);
   movable('lamp', '조명', lamp, 0.4, [obstDep(findObst(LAMP.x, LAMP.z)), vecDep(lampLight.position)]);
   movable('shelf', '책장', shelf, 0.6, [obstDep(findObst(SHELF.x, SHELF.z)), spotDep(SPOTS.records), trigDep(TRIG.records)]);
 
@@ -1869,7 +1941,8 @@ function boot(){
     tv: { x: -3.087, z: -4.229, ry: 0.7854 }, bed: { x: 4.2, z: -0.035, ry: 0 }, lamp: { x: -4.034, z: 4.65, ry: 0 },
     mail: { x: 2.857, z: 4.12, ry: 0.7854 }, sofa: { x: -4.016, z: -1.21, ry: 0 }, plant: { x: -4.01, z: 3.648, ry: 0 },
     table: { x: -0.828, z: 3.816, ry: 0 }, fridge: { x: 1.375, z: -4.576, ry: 0 }, cabinet: { x: 3.863, z: -4.228, ry: 0 },
-    kitchen: { x: -0.62, z: -4.575, ry: 0 }, shelf: { x: 0.45, z: -4.6, ry: 0 }
+    kitchen: { x: -0.62, z: -4.575, ry: 0 }, shelf: { x: 0.45, z: -4.6, ry: 0 },
+    bath: { x: -2.0, z: 3.0, ry: 0.7854 }
   };
   movables.forEach(it => { const d = SITE_DEFAULT[it.id]; if (d) it.home = { x: d.x, z: d.z, ry: d.ry }; });
 
@@ -1883,7 +1956,8 @@ function boot(){
     tv: [['TV', tv.userData.paint]],
     cabinet: [['서랍장', cab.userData.paint]],
     shelf: [['책장', shelf.userData.paint]],
-    plant: [['화분', plant.userData.paint]]
+    plant: [['화분', plant.userData.paint]],
+    bath: [['욕조', bath.userData.paint]]
   };
   movables.forEach(it => {
     it.paint = (PAINT_PARTS[it.id] || []).map(([label, meshes]) => ({ label, meshes, orig: '#' + meshes[0].material.color.getHexString(), cur: null }));
@@ -2584,6 +2658,56 @@ function boot(){
 
     if (edit.sel) { selRing.position.set(edit.sel.g.position.x, FLOOR + 0.03, edit.sel.g.position.z); selRing.scale.setScalar(edit.sel.r); }
 
+    /* 목욕 연출: 거품 부풀기, 오리 둥실, 비눗방울, 번갈아 한마디 */
+    {
+      const inBath = seat.where === 'bath';
+      bathFx.k = inBath ? ease(seat.k) : Math.max(0, bathFx.k - dt * 2);
+      const fk = bathFx.k;
+      bathFoam.forEach(f => {
+        const w = still ? 0 : Math.sin(time * 2 + f.userData.seed) * 0.06;
+        f.visible = fk > 0.01; f.scale.setScalar(Math.max(0.001, fk * (1 + w)));
+      });
+      bathWater.position.y = 0.52 + fk * 0.04;
+      bathDuck.position.y = 0.56 + fk * 0.06 + (still ? 0 : Math.sin(time * 2.2) * 0.012);
+      bathDuck.rotation.z = still ? 0 : Math.sin(time * 1.6) * 0.12;
+      if (inBath && seat.on && seat.k >= 1) {
+        bathFx.bubT -= dt;
+        if (bathFx.bubT <= 0 && !still) {
+          bathFx.bubT = 0.35 + Math.random() * 0.4;
+          const b = bathBubbles.find(x => !x.alive);
+          if (b) {
+            b.alive = true; b.life = 0; b.max = 1.8 + Math.random(); b.sz = 0.6 + Math.random() * 0.9;
+            b.m.position.copy(bath.localToWorld(new V3((Math.random() - 0.5) * 1.3, 0.62, (Math.random() - 0.5) * 0.6)));
+            b.vel.set((Math.random() - 0.5) * 0.25, 0.45 + Math.random() * 0.3, (Math.random() - 0.5) * 0.25);
+            b.m.visible = true;
+          }
+        }
+        if (bathFx.talkT > 0) {
+          bathFx.talkT -= dt;
+          if (bathFx.talkT <= 0) {
+            const t = BATH_TEXT[bathFx.talk++ % BATH_TEXT.length];
+            say('ho1', t[0], 'ok', 2);
+            setTimeout(() => { if (seat.where === 'bath' && seat.on) say('ho2', t[1], 'emo', 1.8); }, 700);
+            spawnHearts(1); bathFx.talkT = 6;
+          }
+        }
+      } else if (!(inBath && seat.on) && (bathFx.talkT !== 0 || fk > 0)) {   /* 욕조에서 나오면 말풍선 정리 */
+        bathFx.talkT = 0;
+        if (!bubs.ho1.hidden && BATH_TEXT.some(t => t[0] === bubs.ho1.textContent)) hush('ho1');
+        if (!bubs.ho2.hidden && BATH_TEXT.some(t => t[1] === bubs.ho2.textContent)) hush('ho2');
+      }
+      bathBubbles.forEach(b => {
+        if (!b.alive) return;
+        b.life += dt;
+        const u = b.life / b.max;
+        if (u >= 1) { b.alive = false; b.m.visible = false; return; }
+        b.m.position.addScaledVector(b.vel, dt);
+        b.m.position.x += Math.sin(time * 3 + b.max * 7) * 0.003;
+        b.m.scale.setScalar(b.sz * (u < 0.15 ? u / 0.15 : u > 0.9 ? 1 + (u - 0.9) * 4 : 1));
+        b.m.material.opacity = u > 0.9 ? 0.55 * (1 - (u - 0.9) * 10) : 0.55;
+      });
+    }
+
     /* 잠자기 연출: 이불 덮기, 방 어둡게, Zzz */
     {
       const n = ease(sleep.k);
@@ -2715,7 +2839,7 @@ function boot(){
     if (hoverXY && !hoverXY.touch && Bus.mode === 'room' && !fl.active && !edit.on) {
       const hp2 = pick(hoverXY.x, hoverXY.y);
       setHovered(hp2 && hp2.type === 'section' ? hp2.id : null);
-      if (hp2 && /^(bunny|buddy|bed|sofa|table|fridge|plant|kitchen|tray)$/.test(hp2.type)) renderer.domElement.style.cursor = 'pointer';
+      if (hp2 && /^(bunny|buddy|bed|sofa|table|bath|fridge|plant|kitchen|tray)$/.test(hp2.type)) renderer.domElement.style.cursor = 'pointer';
     }
 
     /* HTML hotspots follow their 3D anchors */
