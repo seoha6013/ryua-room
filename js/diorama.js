@@ -1002,12 +1002,12 @@ function boot(){
     const happyEyes = [-1, 1].map(s => { const g = onFace(s * 0.33, ey0 - 0.02); g.add(arc(0.05, 0.016)); return g; });
     const yuckEyes = [-1, 1].map(s => {
       const g = onFace(s * 0.33, ey0 - 0.03), dir = -s;            /* 보는 쪽에서 > < 모양 (가운데를 향함) */
-      [1, -1].forEach(up => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.022, 0.012), ink); b.position.set(0, up * 0.021, 0); b.rotation.z = -up * dir * 0.5; g.add(b); });
+      [1, -1].forEach(up => { const b = new THREE.Mesh(new RoundedBoxGeometry(0.085, 0.022, 0.012, 1, 0.003), ink); b.position.set(0, up * 0.021, 0); b.rotation.z = -up * dir * 0.5; g.add(b); });
       return g;
     });
     const smile = onFace(0, ey0 - 0.17); { const m = arc(0.05, 0.014); m.rotation.z = Math.PI; smile.add(m); }
     const frown = onFace(0, ey0 - 0.18);
-    [-1.5, -0.5, 0.5, 1.5].forEach((k, i) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.014, 0.012), ink); b.position.set(k * 0.03, 0, 0); b.rotation.z = i % 2 ? -0.6 : 0.6; frown.add(b); });
+    [-1.5, -0.5, 0.5, 1.5].forEach((k, i) => { const b = new THREE.Mesh(new RoundedBoxGeometry(0.038, 0.014, 0.012, 1, 0.003), ink); b.position.set(k * 0.03, 0, 0); b.rotation.z = i % 2 ? -0.6 : 0.6; frown.add(b); });
     const sweat = put(sph(0.045, 0xA9D4F5, { roughness: 0.2, emissive: 0x7FB8E8, emissiveIntensity: 0.3 }, 14), -0.52, HY + 0.12, 0.22, tilt);
     sweat.scale.set(0.8, 1.3, 0.8); sweat.visible = false;
     /* 손에 든 쿠키 (입 앞, 한 입씩 작아짐) + 작은 손 */
