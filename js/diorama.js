@@ -1837,6 +1837,7 @@ function boot(){
   /* 사용자가 뭔가 조작하면: 알아서 하던 동작은 멈추고, 다음 '알아서'까지 다시 기다림 */
   function noteInput(){
     AUTO.at = time + autoWait();
+    monoHide();                                          /* 혼잣말 말풍선: 누르면 바로 사라지고 다시 셈 */
     if (act && act.auto) endAct();
   }
   window.addEventListener('pointerdown', noteInput, true);
@@ -2027,6 +2028,87 @@ function boot(){
   document.addEventListener('pointerdown', e => {
     if (!actMenu.hidden && !actMenu.contains(e.target) && e.target !== renderer.domElement) closeActMenu();
   });
+
+  /* =========================================================
+     혼잣말 말풍선: 방에서 10~20초 동안 아무 조작이 없으면, 기록장 명대사 중 하나가
+     그 캐릭터 머리 위에 글자가 톡톡 찍히며 뜸 → 3.5초 뒤 사라짐. 한 번에 한 명, 같은 대사 연달아 X.
+     움직이거나 누르면 바로 사라지고 다시 셈. 오른쪽 위 💬 버튼으로 끄기/켜기(브라우저에 기억)
+     ========================================================= */
+  const MONO_KEY = 'pubam-mono';
+  const monoCss = document.createElement('style');
+  monoCss.textContent =
+    '.mono-bub{position:fixed;z-index:29;left:0;top:0;transform:translate(-50%,-100%);max-width:min(260px,72vw);width:max-content;padding:8px 14px;border-radius:18px;border:1.5px solid #1F1B24;box-shadow:0 3px 0 #1F1B24;font:800 15px/1.5 "Gowun Dodum",Nunito,sans-serif;color:#1F1B24;text-align:center;word-break:keep-all;overflow-wrap:anywhere;pointer-events:none;transition:opacity .25s}' +
+    '.mono-bub[hidden]{display:none}' +
+    '.mono-bub.ho1{background:#F6DE8A}.mono-bub.ho2{background:#CDE6FF}' +
+    '.mono-bub::after{content:"";position:absolute;left:50%;bottom:-8px;width:12px;height:12px;background:inherit;border-right:1.5px solid #1F1B24;border-bottom:1.5px solid #1F1B24;transform:translateX(-50%) rotate(45deg)}' +
+    '.mono-bub .mono-ghost{visibility:hidden}' +
+    'body.layout-edit .mono-bub,body:not([data-mode="room"]) .mono-bub{display:none}' +
+    '#monoBtn[aria-pressed="false"]{background:#fff}';
+  document.head.appendChild(monoCss);
+  const monoEl = document.createElement('div');
+  monoEl.className = 'mono-bub'; monoEl.hidden = true; monoEl.setAttribute('role', 'status'); monoEl.setAttribute('aria-live', 'polite');
+  document.body.appendChild(monoEl);
+  const mono = { on: true, at: 10 + Math.random() * 10, show: null, last: null };
+  const monoWait = () => 10 + Math.random() * 10;
+  try { mono.on = localStorage.getItem(MONO_KEY) !== 'off'; } catch (e) {}
+  /* 끄기/켜기 버튼: 소리 버튼 왼쪽 */
+  const monoBtn = document.createElement('button');
+  monoBtn.className = 'icon-btn'; monoBtn.id = 'monoBtn'; monoBtn.type = 'button';
+  monoBtn.innerHTML =
+    '<svg class="ico-on" viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>' +
+    '<svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="#1F1B24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M3 3l18 18"/></svg>';
+  function syncMonoBtn(){
+    monoBtn.setAttribute('aria-pressed', mono.on ? 'true' : 'false');
+    monoBtn.setAttribute('aria-label', mono.on ? '혼잣말 말풍선 켜짐. 누르면 꺼져요' : '혼잣말 말풍선 꺼짐. 누르면 켜져요');
+    monoBtn.title = mono.on ? '혼잣말 말풍선 끄기' : '혼잣말 말풍선 켜기';
+  }
+  syncMonoBtn();
+  { const ha = document.querySelector('.hud-actions'); if (ha) ha.insertBefore(monoBtn, ha.firstChild); }
+  monoBtn.addEventListener('click', () => {
+    mono.on = !mono.on; syncMonoBtn(); monoHide();
+    try { localStorage.setItem(MONO_KEY, mono.on ? 'on' : 'off'); } catch (e) {}
+  });
+  function monoHide(){ mono.show = null; monoEl.hidden = true; mono.at = time + monoWait(); }
+  function monoBlocked(){
+    return !mono.on || Bus.mode !== 'room' || fl.active || edit.on || sleep.on || sleep.k > 0 || cook.on || cook.eat || act
+      || !actMenu.hidden || !cookMenu.hidden || water.on || seat.where === 'bath' || bun.moving || bun2.moving
+      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden;
+  }
+  /* 60Hz */
+  function stepMono(h){
+    if (monoBlocked()) { if (mono.show) monoHide(); else if (time > mono.at - 2) mono.at = time + 2 + Math.random() * 3; return; }   /* 막힌 게 풀리면 조금 뒤부터 다시 */
+    const S = mono.show;
+    if (S) {
+      S.t += h;
+      const per = reduced() ? 0 : 0.055, n = per ? Math.min(S.chars.length, Math.floor(S.t / per) + 1) : S.chars.length;
+      if (n !== S.n) {                                  /* 글자가 톡톡: 다 찍힌 크기를 미리 잡아 두고(투명) 하나씩 보이게 */
+        S.n = n;
+        monoEl.innerHTML = '';
+        monoEl.append(document.createTextNode(S.chars.slice(0, n).join('')));
+        if (n < S.chars.length) { const g = document.createElement('span'); g.className = 'mono-ghost'; g.textContent = S.chars.slice(n).join(''); monoEl.append(g); }
+      }
+      if (S.t > S.chars.length * per + 3.5) monoHide();
+      return;
+    }
+    if (time < mono.at) return;
+    const list = window.PUBAM_QUOTES ? window.PUBAM_QUOTES.bubbles() : [];
+    if (!list.length) { mono.at = time + 10; return; }
+    const pool = list.length > 1 ? list.filter(q => q.id !== mono.last) : list;
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    mono.last = q.id;
+    mono.show = { who: q.who, chars: Array.from(q.line), t: 0, n: -1 };
+    monoEl.className = 'mono-bub ' + q.who; monoEl.hidden = false; monoEl.textContent = '';
+    placeMono();
+  }
+  function placeMono(){
+    if (!mono.show) return;
+    const P = mono.show.who === 'ho2' ? B2 : B1, k = P.bunny.scale.y;
+    const s = toScreen(P.head.getWorldPosition(new V3()).add(new V3(0, 0.72 * k, 0)));
+    const half = Math.min(130, window.innerWidth * 0.36) + 8;
+    monoEl.style.left = Math.min(Math.max(s.x, half), window.innerWidth - half) + 'px';
+    monoEl.style.top = Math.max(s.y, 90) + 'px';
+  }
+  document.addEventListener('pubam-quotes', () => { if (mono.show && !window.PUBAM_QUOTES.bubbles().some(q => q.id === mono.last)) monoHide(); });
 
   const OBST = [
     { x: -2.0, z: -4.1, r: 1.35 }, { x: 2.3, z: -4.2, r: 1.45 }, { x: 3.75, z: 2.9, r: 0.55 },
@@ -2742,6 +2824,7 @@ function boot(){
     stepWater(h);
     stepBath(h);
     stepAct(h);
+    stepMono(h);
     Object.values(sections).forEach(g => { const hv = g.userData.hover; spring(hv, hv.target, 170, 12, h); });
     drawers.forEach(d => spring(d.out, d.target, 230, 15, h));
     spring(sprout.g, sprout.target, 110, 8, h);
@@ -3001,6 +3084,8 @@ function boot(){
     jump: jumpAction,
     act: (k, who) => startAct(k, false, who),
     actMenu: who => openActMenu(who || 'ho1'),
+    get mono(){ return { on: mono.on, at: +(mono.at - time).toFixed(1), show: mono.show ? mono.show.who + ':' + mono.show.chars.join('') : null }; },
+    monoSoon(){ mono.at = time + 0.5; },
     get actState(){ return act ? { kind: act.kind, go: +act.go.toFixed(2), auto: act.auto } : null; },
     autoSoon(){ AUTO.at = time + 1; },
     bathPlay: k => ({ ho1: bathSplashFight, ho2: bathFoamHat, duck: bathDuckSqueak })[k](),
@@ -3371,6 +3456,7 @@ function boot(){
 
     placeCookUI();
     placeActMenu();
+    placeMono();
     /* 확인용 근접 카메라: 주소 끝에 ?closeup=ho1 (또는 ho2) &yaw=각도 &d=거리 */
     if (CLOSEUP) {
       const B = CLOSEUP.who === 'ho2' ? B2 : B1, O = B === B1 ? B2 : B1;
