@@ -160,6 +160,34 @@ https://www.tooplate.com/view/2171-spatial-diorama
       src.connect(lp); lp.connect(g); g.connect(this.voice(0.25)); src.start(t); src.stop(t + 0.55);
       this.bar(196, t + 0.02, 0.12, 0.2);
     },
+    /* 짧은 잡음 한 번 (짝·폭신 공통): f = 거르는 높이, len = 길이(초), v = 크기 */
+    noise: function(type, f, len, v, atk){
+      var c = this.ctx, t = c.currentTime + 0.01, n = Math.floor(c.sampleRate * len), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+      for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+      var src = c.createBufferSource(), flt = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = buf; flt.type = type; flt.frequency.value = f; flt.Q.value = 0.7;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + (atk || 0.003)); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      src.connect(flt); flt.connect(g); g.connect(this.voice(0.2)); src.start(t); src.stop(t + len + 0.05);
+      return t;
+    },
+    /* 짝: 하이파이브 */
+    clap: function(){
+      if (!this.live()) return;
+      var t = this.noise('bandpass', 1900, 0.16, 0.6);
+      this.bar(2093, t + 0.02, 0.05, 0.25);
+    },
+    /* 폭신: 포옹 */
+    fluff: function(){
+      if (!this.live()) return;
+      var t = this.noise('lowpass', 700, 0.45, 0.35, 0.08);
+      this.bell(1318.51, t + 0.12, 0.05, 0.5); this.bell(1975.53, t + 0.22, 0.04, 0.5);
+    },
+    /* 콩: 이마 콩 (나무 블록처럼 짧고 둥근 소리) */
+    bonk: function(){
+      if (!this.live()) return;
+      var t = this.ctx.currentTime + 0.01;
+      this.partials(this.voice(0.15), 392, t, 0.2, [[1, 1, 0.12], [2.76, 0.3, 0.05]], 0.002);
+    },
     back: function(){
       if (!this.live()) return;
       var t = this.ctx.currentTime + 0.01;

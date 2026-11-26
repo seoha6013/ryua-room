@@ -799,6 +799,7 @@ function boot(){
   }
   const SKIN = 0xFBE3D6;
   const FLUSH_COL = new THREE.Color(0xFF8F8F);   /* 목욕 오래 하면 볼 색 */
+  const HAND_REST = new V3(0.31, 0.36, 0.1);      /* 손이 처음 나오는 자리 (몸통 옆) */
   /* 캐릭터별 색·머리 모양: 여기 숫자만 바꾸면 됨 */
   const CHARS = {
     ho1: { style: 'curly', hair: 0xF0E6A8, hairDark: 0xD5C47C,
@@ -1068,10 +1069,9 @@ function boot(){
     [-1.5, -0.5, 0.5, 1.5].forEach((k, i) => { const b = new THREE.Mesh(new RoundedBoxGeometry(0.038, 0.014, 0.012, 1, 0.003), ink); b.position.set(k * 0.03, 0, 0); b.rotation.z = i % 2 ? -0.6 : 0.6; frown.add(b); });
     const sweat = put(sph(0.045, 0xA9D4F5, { roughness: 0.2, emissive: 0x7FB8E8, emissiveIntensity: 0.3 }, 14), -0.52, HY + 0.12, 0.22, tilt);
     sweat.scale.set(0.8, 1.3, 0.8); sweat.visible = false;
-    /* 손에 든 쿠키 (입 앞, 한 입씩 작아짐) + 작은 손 */
+    /* 손에 든 쿠키 (입 앞, 한 입씩 작아짐). 쥐는 손은 아래 동그란 손(hands[0])이 따라옴 */
     const snack = new THREE.Group(); snack.position.set(0.1, HY - 0.36, HR * 0.95); tilt.add(snack); snack.visible = false;
     const snackC = put(cyl(0.075, 0.075, 0.025, COL.white, { roughness: 0.85 }, 18), 0, 0.03, 0, snack); snackC.rotation.x = Math.PI / 2 - 0.35;
-    put(sph(0.05, SKIN, null, 14), 0.02, -0.04, -0.01, snack);
     const faceFx = { happyEyes, yuckEyes, smile, frown, sweat, snack, snackC };
 
     /* 발: 흰 타원 + 외곽선 */
@@ -1092,10 +1092,18 @@ function boot(){
     [[0, 0, 0, 0.15], [-0.11, -0.03, 0.04, 0.1], [0.12, -0.02, -0.03, 0.11], [0.02, 0.15, 0, 0.1], [0.03, 0.26, 0.01, 0.06]].forEach(([x, y, z, r]) =>
       put(sph(r, COL.white, { roughness: 0.55, emissive: 0xFFFFFF, emissiveIntensity: 0.15 }, 16), x, y, z, foamHat));
     const bathWear = { body, collar, tie, towel, foamHat, cheeks, shirt: c.shirt, cheek: c.cheek };
+    /* 동그란 손: 평소엔 없음. 필요할 때만 몸통 옆에서 퐁 나왔다가 쏙 들어감 (poseBunny의 s.hreq)
+       hands[0] = 몸 +x 쪽, hands[1] = -x 쪽. 외곽선은 다른 부품과 같은 회색 뒤집힌 껍데기 */
+    const hands = [1, -1].map(sd => {
+      const m = put(sph(0.068, SKIN, null, 18), sd * HAND_REST.x, HAND_REST.y, HAND_REST.z, tilt);
+      outline(m, 1.16); m.visible = false; m.scale.setScalar(0.001);
+      m.userData.pop = 0; m.userData.sd = sd;
+      return m;
+    });
 
     bunny.traverse(o => { o.userData[tag] = true; });
     /* ears 자리에 머리카락 그룹을 넣어 걸을 때 살짝 흔들리게 함 (sway = 흔들림 세기) */
-    return { bunny, bob, tilt, head, ears: [hair], eyes, feet, shadow, sway: 0.14, faceFx, bathWear };
+    return { bunny, bob, tilt, head, ears: [hair], eyes, feet, shadow, sway: 0.14, faceFx, bathWear, hands };
   }
   /* HO1: 조종하는 캐릭터 (노란 곱슬) */
   const B1 = makeChibi(CHARS.ho1, 'bunny');
@@ -1461,6 +1469,13 @@ function boot(){
   put(cyl(0.115, 0.115, 0.01, 0xF3E2B8, null, 20), 0, 0.045, 0, bowl);
   const whisk = put(cyl(0.008, 0.008, 0.2, 0xC9CFDA, null, 6), 0.03, 0.1, 0, bowl); whisk.rotation.z = 0.4;
   bowl.traverse(o => { o.castShadow = false; });
+  /* 쿠키 틀 (분홍 동그라미): 찍을 때만 손에 들려 나옴 */
+  const cutter = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 8, 22), mat(0xFF9FB8, { roughness: 0.5 }));
+  cutter.rotation.x = Math.PI / 2; cutter.visible = false; scene.add(cutter);
+  /* 손 자리 주기 (세계 좌표). a = +x 쪽 손, b = -x 쪽 손 (null이면 그 손은 안 나옴). 계속 불러야 나와 있음 */
+  function setHands(s, a, b){ s.hreq = { 0: a, 1: b, w: true, until: time + 0.15 }; }
+  const sideOf = s => new V3(Math.cos(s.face), 0, -Math.sin(s.face));        /* 몸 +x 방향 */
+  const frontOf = s => new V3(Math.sin(s.face), 0, Math.cos(s.face));       /* 몸 앞 방향 */
   /* 쿠키 쟁반 */
   let tray = null;                                      /* { g, cookies[], kind: 'raw'|'good'|'burnt' } */
   function makeTray(){
@@ -1534,7 +1549,7 @@ function boot(){
     const kf = kitchen.rotation.y + Math.PI, baker = COOK.spot, watcher = COOK.watch;
     const watchFace = Math.atan2(baker.x - watcher.x, baker.z - watcher.z);
     const mine = who === 'ho1' ? baker : watcher, other = who === 'ho1' ? watcher : baker;
-    walkTo(mine.x, mine.z, who === 'ho1' ? kf : watchFace, () => { cook.a1 = true; });
+    seatWalk({ stand: [mine], yaw: [who === 'ho1' ? kf : watchFace] }, 0, () => { cook.a1 = true; });   /* 식탁 등에 막히면 돌아감 */
     /* HO2: 굽는 사람이면 조리대를, 지켜보는 사람이면 굽는 자리를 봄 */
     budTarget = { x: other.x, z: other.z, face: who === 'ho2' ? kf : watchFace, arrived: false };
   }
@@ -1543,7 +1558,7 @@ function boot(){
     cookMenu.hidden = true;
     if (!cook.on && !cook.eat) return;
     cook.on = false; cook.eat = null; budTarget = null;
-    bowl.visible = false; ovenInner.material.emissiveIntensity = 0; ovenGlass.material.emissiveIntensity = 0; ovenPivot.rotation.x = 0;
+    bowl.visible = false; cutter.visible = false; ovenInner.material.emissiveIntensity = 0; ovenGlass.material.emissiveIntensity = 0; ovenPivot.rotation.x = 0;
     if (tray && tray.kind === 'raw') dropTray();
     [bun, bun2].forEach(s => { if (s.fx) { s.fx.sway = 0; s.fx.shiver = 0; } });
     clearFaces(); hush('ho1'); hush('ho2');
@@ -1593,6 +1608,9 @@ function boot(){
       const f = bs.face; bowl.position.set(bs.pos.x + Math.sin(f) * 0.42, FLOOR + 0.62, bs.pos.z + Math.cos(f) * 0.42);
       whisk.rotation.y = T * 14;
       fx.sway = Math.sin(T * 10) * 0.16;
+      { const xv = sideOf(bs), bp = bowl.position;   /* 한 손은 그릇 잡고, 한 손은 거품기로 빙글빙글 */
+        setHands(bs, bp.clone().addScaledVector(xv, 0.17).add(new V3(0, 0.02, 0)),
+          bp.clone().add(new V3(Math.cos(T * 14) * 0.05, 0.12, Math.sin(T * 14) * 0.05))); }
       cook.tick = (cook.tick || 0) - h; if (cook.tick <= 0) { cook.tick = 0.28; Bus.audio.tap(); }
       return;
     }
@@ -1604,9 +1622,15 @@ function boot(){
       tray.g.position.copy(onCounter);
       if (T - h / D < 2.2 && T >= 2.2) { bs.squash.v -= 2.5; Bus.audio.tap(); }
       if (T - h / D < 2.55 && T >= 2.55) { bs.squash.v -= 2.5; Bus.audio.tap(); }
+      { const press = Math.max(0, 1 - Math.abs(T - 2.2) / 0.12) + Math.max(0, 1 - Math.abs(T - 2.55) / 0.12), xv = sideOf(bs);
+        const top = onCounter.clone().add(new V3(0, 0.09 - 0.06 * press, 0));   /* 두 손으로 틀을 꾹꾹 */
+        cutter.visible = true; cutter.position.copy(top);
+        setHands(bs, top.clone().addScaledVector(xv, 0.08).add(new V3(0, 0.03, 0)), top.clone().addScaledVector(xv, -0.08).add(new V3(0, 0.03, 0))); }
       return;
     }
     /* 오븐에 넣기: 문이 열렸다 닫힘 */
+    cutter.visible = false;
+    if (T < 3.4) { const xv = sideOf(bs), tp = tray.g.position; setHands(bs, tp.clone().addScaledVector(xv, 0.22), tp.clone().addScaledVector(xv, -0.22)); }   /* 쟁반 들고 오븐으로 */
     if (T < 3.8) {
       ovenPivot.rotation.x = 1.25 * tw(2.8, 3.05, T) * (1 - tw(3.55, 3.8, T));
       tray.g.position.lerpVectors(onCounter, inOven, tw(3.0, 3.4, T));
@@ -1647,7 +1671,10 @@ function boot(){
     ovenPivot.rotation.x = 1.25 * tw(6.8, 7.0, T) * (1 - tw(7.6, 7.9, T));
     const out = kitchen.localToWorld(new V3(0.265, 0.6, 0.6));
     const onTable = table.localToWorld(new V3(0, 0.81, -0.12));
-    if (T < 7.6) tray.g.position.lerpVectors(inOven, out, tw(6.9, 7.4, T));
+    if (T < 7.6) {
+      tray.g.position.lerpVectors(inOven, out, tw(6.9, 7.4, T));
+      if (T > 6.85) { const xv = sideOf(bs), tp = tray.g.position; setHands(bs, tp.clone().addScaledVector(xv, 0.22), tp.clone().addScaledVector(xv, -0.22)); }   /* 꺼내기 */
+    }
     else tray.g.position.lerpVectors(out, onTable, tw(7.6, 8.6, T)).add(new V3(0, Math.sin(Math.PI * tw(7.6, 8.6, T)) * 0.5, 0));
     tray.g.rotation.y = mix(kitchen.rotation.y, table.rotation.y, tw(7.6, 8.6, T));
     if (T > 8.8) { cook.on = false; budTarget = null; bun.idle = 0; bun2.idle = 0; }
@@ -1696,14 +1723,22 @@ function boot(){
   function budGoto(h){
     const t = budTarget, dx = t.x - bun2.pos.x, dz = t.z - bun2.pos.z, d = Math.hypot(dx, dz);
     if (d > 0.08) {
-      const mv = Math.min(d, SPEED * 1.15 * h);
-      bun2.pos.x += dx / d * mv; bun2.pos.z += dz / d * mv; resolve(bun2.pos);
-      bun2.faceTarget = Math.atan2(dx, dz); bun2.moving = true;
+      const mv = Math.min(d, SPEED * 1.15 * h), bx = bun2.pos.x, bz = bun2.pos.z, ux = dx / d, uz = dz / d, sd = t.side || 1;
+      let ok = false;                                   /* HO1처럼: 가구에 막히면 옆으로 꺾어서 돌아감 */
+      for (const a of [0, sd * 0.5, sd * 0.95, sd * 1.4, -sd * 0.5, -sd * 0.95, -sd * 1.4]) {
+        const c = Math.cos(a), sn = Math.sin(a);
+        _cand.set(bx + (ux * c - uz * sn) * mv, 0, bz + (ux * sn + uz * c) * mv); resolve(_cand);
+        if (Math.hypot(_cand.x - bx, _cand.z - bz) > mv * 0.6) { bun2.pos.x = _cand.x; bun2.pos.z = _cand.z; ok = true; if (a !== 0) t.side = Math.sign(a); break; }
+      }
+      if (!ok) { bun2.pos.x += ux * mv; bun2.pos.z += uz * mv; resolve(bun2.pos); }
+      bun2.faceTarget = Math.atan2(bun2.pos.x - bx, bun2.pos.z - bz); bun2.moving = true;
       const prev = Math.floor(bun2.phase / Math.PI);
       bun2.phase += h * STEP_RATE * Math.PI; if (Math.floor(bun2.phase / Math.PI) !== prev) bun2.squash.v += 1.1;
       bun2.gait = Math.min(1, bun2.gait + h * 7);
-      t.stuck = (t.stuck || 0) + (mv < SPEED * h * 0.2 ? h : 0);
-      if (t.stuck > 1.2) t.arrived = true;
+      const real = Math.hypot(bun2.pos.x - bx, bun2.pos.z - bz);
+      if (d < (t.best == null ? Infinity : t.best) - 0.05) { t.best = d; t.noProg = 0; } else t.noProg = (t.noProg || 0) + h;
+      t.stuck = (t.stuck || 0) + (real < mv * 0.2 ? h : 0);
+      if (t.stuck > 1.2 || t.noProg > 2.5) t.arrived = true;
     } else {
       t.arrived = true; bun2.moving = false; bun2.gait = Math.max(0, bun2.gait - h * 5);
       bun2.faceTarget = t.face;
@@ -1728,6 +1763,267 @@ function boot(){
       b.style.left = s.x + 'px'; b.style.top = s.y + 'px';
     });
   }
+
+  /* =========================================================
+     둘의 상호작용 (누구나). 캐릭터를 누르면 머리 위에 동그란 선택지 6개가 펼쳐짐
+     하이파이브 · 쓰다듬기(누구를 눌렀든 HO1 → HO2) · 손잡기 · 포옹 · 기대기 · 이마 콩
+     고르면 둘이 알맞은 거리로 다가가서(HO1 = walkTo, HO2 = budTarget) 동작하고, 끝나면 원래대로.
+     가까이서 1~2분 가만히 있으면 가끔 알아서 기대기·손잡기 (조작하면 바로 멈춤)
+     ========================================================= */
+  const ACTS = {                                        /* face: 마주 봄 / 아니면 나란히 (화면 쪽) · D: 둘 사이 거리 · dur: 길이(초) */
+    five: { icon: '🙌', label: '하이파이브', face: true, D: 1.15, dur: 2.5 },
+    pat:  { icon: '✋', label: '쓰다듬기', face: true, D: 1.0, dur: 3.0 },
+    hold: { icon: '🤝', label: '손잡기', face: false, D: 1.1, dur: 4.6 },
+    hug:  { icon: '🤗', label: '포옹', face: true, D: 1.02, dur: 3.4 },
+    lean: { icon: '😌', label: '기대기', face: false, D: 1.22, dur: 4.4 },
+    bump: { icon: '💫', label: '이마 콩', face: true, D: 1.25, dur: 2.4 }
+  };
+  let act = null;
+  const AUTO = { at: 60 + Math.random() * 60 };        /* 이 시각(time)이 지나면 알아서 하나 */
+  const autoWait = () => 60 + Math.random() * 60;
+  function canInteract(){
+    return Bus.mode === 'room' && !fl.active && !edit.on && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
+      && !cook.on && !cook.eat && !water.on;
+  }
+  /* 두 사람이 설 자리: 가구에 걸리면 방 가운데 쪽으로 조금씩 옮겨 봄 */
+  function actSpots(A, M0){
+    const pa = bun.pos, pb = bun2.pos;
+    let best = null;
+    for (let i = 0; i <= 6; i++) {
+      const M = M0.clone().lerp(new V3(0, 0, 0.5), i * 0.15);
+      let a, b, fa, fb, sg = 1;
+      if (A.face) {
+        const u = pb.clone().sub(pa); u.y = 0; if (u.lengthSq() < 1e-4) u.set(0, 0, 1); u.normalize();
+        a = M.clone().addScaledVector(u, -A.D / 2); b = M.clone().addScaledVector(u, A.D / 2);
+        fa = Math.atan2(u.x, u.z); fb = fa + Math.PI;
+      } else {
+        const c = camera.position.clone().sub(M); c.y = 0; c.normalize();
+        fa = fb = Math.atan2(c.x, c.z);
+        const xv = new V3(Math.cos(fa), 0, -Math.sin(fa));
+        sg = pa.clone().sub(M).dot(xv) <= 0 ? 1 : -1;    /* 덜 걷게: HO1이 원래 있던 쪽 그대로 */
+        a = M.clone().addScaledVector(xv, -sg * A.D / 2); b = M.clone().addScaledVector(xv, sg * A.D / 2);
+      }
+      const ra = resolve(a.clone()), rb = resolve(b.clone());
+      const off = ra.distanceTo(a) + rb.distanceTo(b);
+      if (!best || off < best.off) best = { a: ra, b: rb, fa, fb, sg, off };
+      if (off < 0.02) break;
+    }
+    return best;
+  }
+  function startAct(kind, auto, who){
+    if (!ACTS[kind] || !canInteract()) return false;
+    if (act) endAct();
+    closeActMenu();
+    const A = ACTS[kind], M = bun.pos.clone().add(bun2.pos).multiplyScalar(0.5);
+    const sp = actSpots(A, M);
+    const me = act = { kind, A, auto: !!auto, go: -1, wait: 0, a1: false, fa: sp.fa, fb: sp.fb, sg: sp.sg,
+      leaner: who === 'ho2' ? bun2 : who === 'ho1' ? bun : (Math.random() < 0.5 ? bun : bun2) };
+    keys.clear();
+    seatWalk({ stand: [sp.a], yaw: [sp.fa] }, 0, () => { if (act === me) me.a1 = true; });
+    budTarget = me.bt = { x: sp.b.x, z: sp.b.z, face: sp.fb, arrived: false };
+    return true;
+  }
+  function endAct(){
+    const me = act; if (!me) return;
+    act = null;
+    if (budTarget === me.bt) budTarget = null;
+    if (me.go < 0 && bun.onArrive) { bun.onArrive = null; bun.moving = false; bun.target = null; }   /* 다가가던 중이면 그 자리에 멈춤 */
+    [bun, bun2].forEach(s => { s.pose = null; s.shut = false; s.hreq = null; s.expr = null; });
+    bun.lock = 0; bun.idle = 0; bun2.idle = 0;
+  }
+  /* 사용자가 뭔가 조작하면: 알아서 하던 동작은 멈추고, 다음 '알아서'까지 다시 기다림 */
+  function noteInput(){
+    AUTO.at = time + autoWait();
+    if (act && act.auto) endAct();
+  }
+  window.addEventListener('pointerdown', noteInput, true);
+  window.addEventListener('wheel', noteInput, { capture: true, passive: true });
+  window.addEventListener('keydown', e => {
+    noteInput();
+    if (KEYMAP[e.code] && act && !isField(e.target)) endAct();             /* 방향키로 걷기 시작하면 멈춤 */
+    if (e.key === 'Escape' && !actMenu.hidden) { closeActMenu(); e.stopPropagation(); }
+  }, true);
+
+  /* --- 동작 안무: T = 시작 후 초, hit(x) = 이번 틱에 x초를 지났는지 --- */
+  const W = (s, x, y, z) => { const f = s.face; return new V3(s.pos.x + Math.cos(f) * x + Math.sin(f) * z, FLOOR + 0.02 + y, s.pos.z - Math.sin(f) * x + Math.cos(f) * z); };
+  const restW = (s, sd) => W(s, sd * HAND_REST.x, HAND_REST.y, HAND_REST.z);
+  const via = (a, b, k) => a.lerp(b, k);                 /* a를 b 쪽으로 k만큼 (a가 바뀜) */
+  const kk = (a, b, T) => sstep(a, b, T);
+  const midOf = () => bun.pos.clone().add(bun2.pos).multiplyScalar(0.5);
+  const ACT_RUN = {
+    five(T, hit){                                       /* 하이파이브: 둘이 손을 들어 짝! */
+      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1, ua = frontOf(A);
+      const C = midOf().addScaledVector(sideOf(A), 0.26); C.y = FLOOR + 1.05;
+      const up = kk(0.1, 0.55, T), slap = kk(0.62, 0.78, T), down = kk(1.5, 1.9, T);
+      const pa = via(via(via(restW(A, 1), W(A, 0.42, 1.25, 0.2), up), C.clone().addScaledVector(ua, -0.07), slap), restW(A, 1), down);
+      const pb = via(via(via(restW(B, -1), W(B, -0.42, 1.25, 0.2), up), C.clone().addScaledVector(ua, 0.07), slap), restW(B, -1), down);
+      if (T < 1.95) { setHands(A, pa, null); setHands(B, null, pb); }
+      if (hit(0.78)) { Bus.audio.clap(); twinkle(reduced() ? 5 : 10, C); A.squash.v -= 2 * amp; B.squash.v -= 2 * amp; A.expr = 'smile'; B.expr = 'smile'; }
+      if (hit(1.0)) say('ho1', '나이스~!', 'ok', 1.4);
+      if (hit(1.4)) say('ho2', '…나이스입니다.', '', 1.4);
+    },
+    pat(T, hit){                                        /* 쓰다듬기: 늘 HO1이 HO2 머리를 토닥토닥 (3번) */
+      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1;
+      const top = B2.head.getWorldPosition(new V3()).add(new V3(0, 0.5, 0)).addScaledVector(frontOf(B), 0.05);
+      const reach = kk(0.1, 0.575, T), back = kk(2.3, 2.7, T);
+      const yo = T < 0.575 || T > 2.225 ? 0.1 : 0.1 * Math.abs(Math.cos(Math.PI * (T - 0.575) / 0.55));   /* 0.85·1.4·1.95초에 닿음 */
+      const p = via(via(restW(A, 1), top.clone().add(new V3(0, yo, 0)), reach), restW(A, 1), back);
+      if (T < 2.85) setHands(A, p, null);
+      const shy = kk(0.5, 0.8, T) * (1 - kk(2.3, 2.7, T));
+      B.pose = { lx: -0.06 * shy * amp, dy: -0.045 * shy * amp }; B.shut = shy > 0.5;   /* 눈 감고 살짝 움츠림 */
+      A.pose = { lx: 0.08 * reach * (1 - back) };
+      [0.85, 1.4, 1.95].forEach(x => { if (hit(x)) { Bus.audio.tap(); B.squash.v -= 1.3 * amp; } });
+      if (hit(0.6)) A.expr = 'smile';
+      if (hit(0.9)) say('ho1', '토닥토닥~', 'ok', 1.5);
+      if (hit(2.0)) say('ho2', '…감사합니다.', '', 1.6);
+      if (hit(2.3)) spawnHearts(1, 'ho2');
+    },
+    hold(T, hit, me){                                   /* 손잡기: 나란히 서서 잡은 손을 살랑살랑 */
+      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1, f = frontOf(A);
+      const inK = kk(0.1, 0.5, T), outK = kk(3.9, 4.3, T);
+      const swing = Math.sin((T - 0.5) * 4.2) * 0.09 * amp * kk(0.5, 0.9, T) * (1 - kk(3.5, 3.9, T));
+      const Hm = midOf().addScaledVector(f, 0.14 + swing); Hm.y = FLOOR + 0.4;
+      const ia = me.sg > 0 ? 0 : 1, ib = 1 - ia, sdOf = i => (i ? -1 : 1);
+      const ha = [null, null], hb = [null, null];
+      ha[ia] = via(via(restW(A, sdOf(ia)), Hm, inK), restW(A, sdOf(ia)), outK);
+      hb[ib] = via(via(restW(B, sdOf(ib)), Hm, inK), restW(B, sdOf(ib)), outK);
+      if (T < 4.35) { setHands(A, ha[0], ha[1]); setHands(B, hb[0], hb[1]); }
+      A.pose = { lx: swing * 0.5 }; B.pose = { lx: swing * 0.5 };
+      if (hit(0.8)) { say('ho1', '헤헤.', 'ok', 1.4); A.expr = 'smile'; }
+      if (hit(1.7)) say('ho2', '…손 따뜻하시네요.', '', 1.8);
+      if (hit(2.6)) { spawnHearts(1); spawnHearts(1, 'ho2'); }
+    },
+    hug(T, hit){                                        /* 포옹: 꼭 붙어서 손으로 감싸 안음 + 하트 */
+      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1;
+      const inK = kk(0.1, 0.55, T), outK = kk(2.6, 3.0, T), e = inK * (1 - outK);
+      A.pose = { lx: 0.1 * e, lz: 0.26 * e * (0.6 + 0.4 * amp) }; B.pose = { lx: 0.1 * e, lz: 0.26 * e * (0.6 + 0.4 * amp) };
+      const wrap = (s, other, sd) => via(via(restW(s, sd), W(other, -sd * 0.3, 0.5, -0.08), inK), restW(s, sd), outK);
+      if (T < 3.1) { setHands(A, wrap(A, B, 1), wrap(A, B, -1)); setHands(B, wrap(B, A, 1), wrap(B, A, -1)); }
+      B.shut = e > 0.5;
+      if (hit(0.55)) Bus.audio.fluff();
+      if (hit(0.9)) { spawnHearts(reduced() ? 1 : 2); spawnHearts(1, 'ho2'); A.squash.v -= 1.5 * amp; B.squash.v -= 1.5 * amp; A.expr = 'smile'; }
+      if (hit(1.1)) say('ho1', '꼬옥~', 'ok', 1.4);
+      if (hit(1.9)) say('ho2', '…따뜻해요.', '', 1.5);
+      if (hit(2.7)) A.expr = null;
+    },
+    lean(T, hit, me){                                   /* 기대기: 한 명이 머리를 상대 쪽으로 톡 (손 없음) */
+      const L = me.leaner, O = L === bun ? bun2 : bun;
+      const side = L === bun ? me.sg : -me.sg;          /* +1 = 상대가 기대는 사람의 +x 쪽 */
+      const e = kk(0.3, 0.9, T) * (1 - kk(3.4, 4.0, T));
+      L.pose = { lz: -side * 0.2 * e, dy: -0.02 * e }; O.pose = { lz: side * 0.05 * e };
+      L.shut = e > 0.6;
+      if (hit(0.85)) Bus.audio.tap();
+      if (hit(1.6)) spawnHearts(1, L === bun2 ? 'ho2' : undefined);
+      if (L === bun) { if (hit(1.1)) say('ho1', '조금만 이대로…', 'ok', 1.8); if (hit(2.2)) say('ho2', '…네, 편하게 계세요.', '', 1.8); }
+      else { if (hit(1.1)) say('ho2', '잠깐만 기댈게요.', '', 1.8); if (hit(2.2)) { say('ho1', '응, 얼마든지~', 'ok', 1.8); bun.expr = 'smile'; } }
+    },
+    bump(T, hit){                                       /* 이마 콩: 살짝 뒤로 → 콩! → 튕겨 돌아옴 (손 없음) */
+      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1;
+      const lx = -0.05 * amp * kk(0.05, 0.35, T) * (1 - kk(0.35, 0.55, T)) + 0.13 * kk(0.4, 0.6, T) * (1 - kk(0.8, 1.3, T));
+      A.pose = { lx }; B.pose = { lx };
+      if (hit(0.6)) {
+        Bus.audio.bonk(); A.squash.v -= 1.5 * amp; B.squash.v -= 1.5 * amp;
+        const c = midOf(); c.y = FLOOR + 1.2; twinkle(reduced() ? 4 : 8, c);
+        A.shut = true; B.shut = true;
+      }
+      if (hit(0.75)) say('ho1', '콩!', 'ok', 1.3);
+      if (hit(1.2)) { A.shut = false; A.expr = 'smile'; }
+      if (hit(1.35)) say('ho2', '…아파요.', '', 1.5);
+      if (hit(1.6)) B.shut = false;
+    }
+  };
+  /* 60Hz: 다가가기 → 동작 → 끝. 없을 땐 '알아서' 할지 봄 */
+  function stepAct(h){
+    if (!act) {
+      if (time > AUTO.at) {
+        AUTO.at = time + 8;                              /* 조건이 안 맞으면 조금 뒤 다시 봄 */
+        const near = Math.hypot(bun.pos.x - bun2.pos.x, bun.pos.z - bun2.pos.z) < 1.8;
+        if (near && !bun.moving && !bun2.moving && canInteract() && actMenu.hidden && cookMenu.hidden && !budTarget) {
+          startAct(Math.random() < 0.5 ? 'lean' : 'hold', true);
+          AUTO.at = time + autoWait();
+        }
+      }
+      return;
+    }
+    const me = act;
+    if (!canInteract() && me.go >= 0) { endAct(); return; }
+    if (me.go < 0) {                                    /* 둘 다 자리에 갈 때까지 (못 가면 6초 뒤 그 자리에서) */
+      me.wait += h;
+      if (!((me.a1 || !bun.moving) && me.bt.arrived) && me.wait < 6) return;
+      me.go = 0; bun.moving = false; bun.target = null; bun.onArrive = null;
+      bun.faceTarget = me.fa; bun.lock = 99; me.bt.face = me.fb; bun2.faceTarget = me.fb;
+    }
+    const sp = reduced() ? 1.5 : 1;                     /* 움직임 줄이기: 짧게 */
+    const T0 = me.go - 0.3; me.go += h * sp; const T = me.go - 0.3;   /* 0.3초 동안 서로 쪽으로 돌아섬 */
+    if (T < 0) return;
+    ACT_RUN[me.kind](T, x => T0 < x && T >= x, me);
+    if (T > me.A.dur) endAct();
+  }
+
+  /* --- 선택지: 누른 캐릭터 머리 위에 동그란 버튼이 반원으로 펼쳐짐 --- */
+  const actCss = document.createElement('style');
+  actCss.textContent =
+    '.act-menu{position:fixed;z-index:31;left:0;top:0;width:0;height:0}' +
+    '.act-menu[hidden]{display:none}' +
+    '.act-btn{position:absolute;left:0;top:0;width:60px;height:60px;margin:-30px 0 0 -30px;padding:0;border-radius:50%;border:1.5px solid #1F1B24;background:#fff;box-shadow:0 3px 0 #1F1B24;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;' +
+      'transform:translate(0,0) scale(.3);opacity:0;transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .18s;-webkit-tap-highlight-color:transparent}' +
+    '.act-menu.open .act-btn{transform:translate(var(--x),var(--y)) scale(1);opacity:1}' +
+    '.act-btn:nth-child(odd){background:#FFF6D6}.act-btn:nth-child(even){background:#E3EEFF}' +
+    '.act-btn:hover,.act-btn:focus-visible{outline:3px solid #5565AA;outline-offset:2px}' +
+    '.act-btn:active{box-shadow:0 1px 0 #1F1B24;margin-top:-28px}' +
+    '.act-btn .ai{font:22px/1 "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}' +
+    '.act-btn .al{font:800 10px/1 Nunito,"Gowun Dodum",sans-serif;letter-spacing:-.3px;color:#1F1B24;white-space:nowrap;pointer-events:none}' +
+    '@media (prefers-reduced-motion:reduce){.act-btn{transition:none}}' +
+    'body.act-open #hotspots{opacity:.15;pointer-events:none;transition:opacity .2s}' +
+    'body.layout-edit .act-menu,body:not([data-mode="room"]) .act-menu{display:none}';
+  document.head.appendChild(actCss);
+  const actMenu = document.createElement('div');
+  actMenu.className = 'act-menu'; actMenu.hidden = true; actMenu.setAttribute('role', 'menu'); actMenu.setAttribute('aria-label', '둘이 함께 하기');
+  const ACT_KEYS = Object.keys(ACTS);
+  ACT_KEYS.forEach(k => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'act-btn'; b.dataset.act = k; b.setAttribute('role', 'menuitem'); b.setAttribute('aria-label', ACTS[k].label);
+    b.innerHTML = '<span class="ai" aria-hidden="true">' + ACTS[k].icon + '</span><span class="al" aria-hidden="true">' + ACTS[k].label + '</span>';
+    actMenu.appendChild(b);
+  });
+  document.body.appendChild(actMenu);
+  const actR = () => (window.innerWidth < 420 ? 140 : 150);   /* 반원 가로 반지름 (세로는 2/3) */
+  function layoutActMenu(){
+    const R = actR(), n = ACT_KEYS.length;
+    [...actMenu.children].forEach((b, i) => {
+      const a = Math.PI + Math.PI * i / (n - 1);         /* 왼쪽 → 위 → 오른쪽 반원 */
+      b.style.setProperty('--x', (Math.cos(a) * R).toFixed(1) + 'px');
+      b.style.setProperty('--y', (Math.sin(a) * R * 0.67).toFixed(1) + 'px');
+    });
+  }
+  function openActMenu(who){
+    if (!canInteract()) return;
+    if (act) endAct();
+    cookMenu.hidden = true;
+    actMenu.dataset.who = who;
+    layoutActMenu();
+    actMenu.classList.remove('open'); actMenu.hidden = false; placeActMenu(); document.body.classList.add('act-open');
+    void actMenu.offsetWidth; actMenu.classList.add('open');
+    Bus.audio.hop();
+    try { actMenu.firstChild.focus({ preventScroll: true }); } catch (e) {}
+  }
+  function closeActMenu(){ if (!actMenu.hidden) { actMenu.hidden = true; actMenu.classList.remove('open'); } document.body.classList.remove('act-open'); }
+  function placeActMenu(){
+    if (actMenu.hidden) return;
+    const P = actMenu.dataset.who === 'ho2' ? B2 : B1;
+    const s = toScreen(P.head.getWorldPosition(new V3()).add(new V3(0, 0.25, 0)));
+    const m = Math.min(actR() + 34, window.innerWidth / 2), top = actR() * 0.67 + 40;
+    actMenu.style.left = Math.min(Math.max(s.x, m), window.innerWidth - m) + 'px';
+    actMenu.style.top = Math.min(Math.max(s.y, top + 20), window.innerHeight - 40) + 'px';
+  }
+  actMenu.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    startAct(b.dataset.act, false, actMenu.dataset.who);
+  });
+  /* 선택지 바깥을 누르면 닫힘 (3D 방을 누른 경우는 pointerup에서 처리) */
+  document.addEventListener('pointerdown', e => {
+    if (!actMenu.hidden && !actMenu.contains(e.target) && e.target !== renderer.domElement) closeActMenu();
+  });
 
   const OBST = [
     { x: -2.0, z: -4.1, r: 1.35 }, { x: 2.3, z: -4.2, r: 1.45 }, { x: 3.75, z: 2.9, r: 0.55 },
@@ -1991,14 +2287,16 @@ function boot(){
   }
   const canvas = renderer.domElement;
   let down = null, hoverXY = null;
-  canvas.addEventListener('pointerdown', e => { if (edit.on) return; down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  canvas.addEventListener('pointerdown', e => { if (edit.on) return; down = { x: e.clientX, y: e.clientY, t: performance.now(), menu: !actMenu.hidden }; });
   canvas.addEventListener('pointermove', e => { hoverXY = { x: e.clientX, y: e.clientY, touch: e.pointerType !== 'mouse' }; });
   canvas.addEventListener('pointerleave', () => { hoverXY = null; setHovered(null); });
   canvas.addEventListener('pointerup', e => {
     if (!down || edit.on) return;
-    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), long = performance.now() - down.t > 600;
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), long = performance.now() - down.t > 600, hadMenu = down.menu;
     down = null;
     if (moved > 7 || long || Bus.mode !== 'room' || fl.active) return;
+    if (hadMenu || !actMenu.hidden) { closeActMenu(); return; }   /* 선택지 바깥을 누르면 닫히기만 함 */
+    if (act) endAct();                                   /* 동작 중에 누르면 멈추고 원래대로 */
     if (sleep.on) { wakeUp(); return; }                 /* 자는 중엔 아무 데나 누르면 깸 */
     if (cook.eat) return;                                /* 먹는 동안엔 눌러도 그대로 */
     if (seat.on && seat.where === 'bath') {              /* 욕조: 캐릭터·오리·물을 누르면 반응, 다른 데 누르면 나옴 */
@@ -2015,8 +2313,8 @@ function boot(){
     if (!cookMenu.hidden && (!h || h.type !== 'kitchen')) { cookMenu.hidden = true; return; }   /* 다른 데 누르면 선택지 닫힘 */
     if (!h) return;
     if (h.type === 'section') { kick(h.id); if (h.tab && window.PUBAM_RECORDS) window.PUBAM_RECORDS.setTab(h.tab); Bus.open(h.id); }
-    else if (h.type === 'bunny') jumpAction();
-    else if (h.type === 'buddy') { hopBud(4.4); Bus.audio.hop(); }
+    else if (h.type === 'bunny') openActMenu('ho1');   /* 캐릭터 = 둘이 함께 하기 선택지 (점프는 스페이스) */
+    else if (h.type === 'buddy') openActMenu('ho2');
     else if (h.type === 'bed') goSleep();
     else if (h.type === 'sofa' || h.type === 'table' || h.type === 'bath') sitDown(h.type);
     else if (h.type === 'fridge') toggleFridge();
@@ -2273,7 +2571,7 @@ function boot(){
   function setEdit(on){
     if (on && sleep.on) wakeUp();
     if (on && seat.on) standUp();
-    if (on) cancelCook();                                 /* 가구 배치 편집을 열면 요리 취소 */
+    if (on) { cancelCook(); closeActMenu(); endAct(); }                                 /* 가구 배치 편집을 열면 요리 취소 */
     edit.on = on; select(null); showPal(false);
     document.body.classList.toggle('layout-edit', on);
     $('lbTools').hidden = !on; $('lbToggle').hidden = on; $('lbCode').hidden = true;
@@ -2423,7 +2721,7 @@ function boot(){
     } else {
       bun.gait = Math.max(0, bun.gait - h * 5);
       bun.idle += h;
-      if (bun.idle > 2.2 && bun.lock <= 0 && Bus.mode === 'room' && !cook.on && !cook.eat) bun.faceTarget = Math.atan2(camera.position.x - bun.pos.x, camera.position.z - bun.pos.z);
+      if (bun.idle > 2.2 && bun.lock <= 0 && Bus.mode === 'room' && !cook.on && !cook.eat && !act) bun.faceTarget = Math.atan2(camera.position.x - bun.pos.x, camera.position.z - bun.pos.z);
     }
     bun.lock -= h;
     bun.face += wrapA(bun.faceTarget - bun.face) * Math.min(1, h * 9);
@@ -2440,6 +2738,7 @@ function boot(){
     spring(fridgeDoor, fridgeDoor.target, 60, 9, h);
     stepWater(h);
     stepBath(h);
+    stepAct(h);
     Object.values(sections).forEach(g => { const hv = g.userData.hover; spring(hv, hv.target, 170, 12, h); });
     drawers.forEach(d => spring(d.out, d.target, 230, 15, h));
     spring(sprout.g, sprout.target, 110, 8, h);
@@ -2647,7 +2946,7 @@ function boot(){
   const engine = {
     focus(id, onReveal){
       if (sleep.on) wakeUp();
-      cancelCook();                                       /* 메뉴를 열면 요리 취소 */
+      cancelCook(); closeActMenu(); endAct();             /* 메뉴를 열면 요리·상호작용 취소 */
       focusId = id;
       setHovered(null);
       const s = SPOTS[id];
@@ -2697,6 +2996,10 @@ function boot(){
     get camera(){ return camera; },
     get flying(){ return fl.active; },
     jump: jumpAction,
+    act: (k, who) => startAct(k, false, who),
+    actMenu: who => openActMenu(who || 'ho1'),
+    get actState(){ return act ? { kind: act.kind, go: +act.go.toFixed(2), auto: act.auto } : null; },
+    autoSoon(){ AUTO.at = time + 1; },
     bathPlay: k => ({ ho1: bathSplashFight, ho2: bathFoamHat, duck: bathDuckSqueak })[k](),
     get near(){ return nearSection(); },
     get heartsAlive(){ return hearts.filter(h => h.alive && h.m.visible).length; }
@@ -2728,7 +3031,10 @@ function boot(){
   }, { passive: true });
 
   /* 토끼 한 마리의 모양(걷기·숨쉬기·눈 깜빡임·그림자)을 상태값에 맞춤 */
+  const _hw = new V3(), _eh = new V3(), _ehOff = new V3(0.02, -0.05, -0.01);
+  const backOut = t => { const a = t - 1; return 1 + 2.7 * a * a * a + 1.7 * a * a; };   /* 퐁: 살짝 넘쳤다 돌아옴 */
   function poseBunny(P, s, dt, still){
+    let eatHand = null;
     const se = ease(sleep.k), sk = seat.where ? ease(seat.k) : 0;
     if (se > 0 && s.bedSlot) {
       /* 침대로 폴짝 올라가 등을 대고 누움 (머리는 헤드보드 쪽) */
@@ -2754,6 +3060,8 @@ function boot(){
       P.tilt.rotation.z += s.fx.sway || 0;
       P.bob.position.x = s.fx.shiver > 0 && !still ? Math.sin(time * 70) * 0.035 * Math.min(1, s.fx.shiver) : 0;
     }
+    /* 둘의 상호작용: 몸 기울이기 (lx = 앞으로, lz = 옆으로(+는 -x 쪽), dy = 위아래) */
+    if (s.pose) { P.tilt.rotation.x += s.pose.lx || 0; P.tilt.rotation.z += s.pose.lz || 0; P.bob.position.y += s.pose.dy || 0; }
     const breathe = still ? 0 : Math.sin(time * (2.4 - se) + (s.breathSeed || 0)) * (0.012 + 0.018 * se) * (1 - s.gait);
     const sq = clamp(s.squash.x, -0.28, 0.28);
     P.bob.scale.set(1 + sq * 0.55, 1 - sq + breathe, 1 + sq * 0.55);
@@ -2765,7 +3073,7 @@ function boot(){
     P.ears.forEach(e => { e.rotation.x = s.ear.x * (P.sway == null ? 1 : P.sway); e.rotation.z = -e.userData.side * (0.08 + (still ? 0 : Math.sin(time * 1.7 + e.userData.side + (s.breathSeed || 0)) * 0.05)); });
     s.blinkT -= dt;
     const blinking = s.blinkT < 0.16;
-    P.eyes.forEach(e => { e.scale.y = blinking || se > 0.8 ? 0.12 : 1; });   /* 자는 동안은 눈 감음 */
+    P.eyes.forEach(e => { e.scale.y = blinking || se > 0.8 || s.shut ? 0.12 : 1; });   /* 자는 동안·s.shut이면 눈 감음 */
     if (s.blinkT < 0) s.blinkT = Math.random() < 0.25 ? 0.4 : 2.0 + Math.random() * 2.2;   /* 가끔 두 번 연속 깜빡 */
     /* 쿠키 먹는 표정: s.expr = 'smile' | 'yuck' | null, s.bite = 손에 남은 쿠키(3~0), s.chew = 오물오물 */
     const F = P.faceFx;
@@ -2779,7 +3087,14 @@ function boot(){
       if (ex === 'yuck') F.sweat.position.y = HY + 0.12 - ((time * 0.25) % 0.12);
       const b = s.bite || 0;
       F.snack.visible = b > 0;
-      if (b > 0) F.snackC.scale.setScalar([0, 0.45, 0.72, 1][b]);
+      if (b > 0) {
+        F.snackC.scale.setScalar([0, 0.45, 0.72, 1][b]);
+        /* 쟁반 쪽(앞 아래)에서 집어 입 앞으로 가져옴 → 한 입마다 입 쪽으로 쏙 */
+        s.grab = Math.min(1, (s.grab || 0) + dt / (still ? 0.2 : 0.45));
+        const g = ease(s.grab), bt = (s.chew || 0) > 0 ? Math.sin(Math.PI * (1 - s.chew / 0.45)) : 0;
+        F.snack.position.set(mix(0.24, 0.1, g) - 0.04 * bt, mix(0.5, HY - 0.36, g) + 0.04 * bt, mix(0.8, HR * 0.95, g) - 0.03 * bt);
+        eatHand = _eh.copy(F.snack.position).add(_ehOff);
+      } else s.grab = 0;
     }
     /* 목욕: 욕조에 들어가면 옷을 벗음(몸통·발 = 살색, 깃·넥타이 숨김) + 머리에 수건.
        오래 있으면 볼이 빨개짐(s.flush 0~1), 거품 모자(s.foam 0~1) */
@@ -2798,6 +3113,23 @@ function boot(){
       BW.foamHat.scale.setScalar(Math.max(0.001, fh * (1 + (still ? 0 : Math.sin(time * 3) * 0.04))));
       const fl2 = s.flush || 0;
       BW.cheeks.forEach(ch => { ch.material.color.setHex(BW.cheek).lerp(FLUSH_COL, fl2 * 0.8); ch.scale.set(1 + fl2 * 0.35, 0.55 + fl2 * 0.2, 0.35); });
+    }
+    /* 동그란 손: s.hreq = { 0: 자리, 1: 자리, w: 세계 좌표인지, until: 언제까지 } (계속 새로 줘야 나와 있음)
+       나올 땐 퐁(살짝 커졌다 제 크기), 들어갈 땐 쏙 작아짐 */
+    if (P.hands) {
+      const r = s.hreq && s.hreq.until > time ? s.hreq : null;
+      if (r && r.w) P.bunny.updateMatrixWorld(true);
+      P.hands.forEach((m, i) => {
+        const u = m.userData;
+        let tgt = null;
+        if (eatHand && i === 0) tgt = eatHand;
+        else if (r && r[i]) tgt = r.w ? P.tilt.worldToLocal(_hw.copy(r[i])) : r[i];
+        if (tgt) m.position.copy(tgt);
+        else if (u.pop === 0) m.position.set(u.sd * HAND_REST.x, HAND_REST.y, HAND_REST.z);
+        u.pop = clamp(u.pop + (tgt ? dt / (still ? 0.12 : 0.22) : -dt / 0.15), 0, 1);
+        const sc = tgt ? backOut(u.pop) : u.pop * u.pop;
+        m.visible = u.pop > 0.001; m.scale.setScalar(Math.max(0.001, sc));
+      });
     }
     P.shadow.position.set(P.bunny.position.x, FLOOR + 0.035, P.bunny.position.z);
     const ss = 1 - Math.min(s.jumpY, 1.2) * 0.4; P.shadow.scale.set(ss, ss, ss);
@@ -3035,6 +3367,7 @@ function boot(){
     }
 
     placeCookUI();
+    placeActMenu();
     /* 확인용 근접 카메라: 주소 끝에 ?closeup=ho1 (또는 ho2) &yaw=각도 &d=거리 */
     if (CLOSEUP) {
       const B = CLOSEUP.who === 'ho2' ? B2 : B1, O = B === B1 ? B2 : B1;
