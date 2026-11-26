@@ -1110,6 +1110,9 @@ function boot(){
   }
   /* HO1: 조종하는 캐릭터 (노란 곱슬) */
   const B1 = makeChibi(CHARS.ho1, 'bunny');
+  /* 키 차이: 류스케(HO1)가 아키사보다 조금 더 큼. 캐릭터 전체(머리·몸·발·머리카락·손)를 발밑 기준으로 키움 */
+  const HO1_K = 1.06;
+  B1.bunny.scale.setScalar(HO1_K);
   const { bunny, head, feet } = B1;
   /* HO2: HO1을 따라다니는 캐릭터 (파란 단발) */
   const B2 = makeChibi(CHARS.ho2, 'buddy');
@@ -1125,11 +1128,11 @@ function boot(){
     face: 0.7, faceTarget: 0.7, idle: 0, jumpY: 0, jumpV: 0,
     squash: { x: 0, v: 0 }, ear: { x: 0, v: 0 }, blinkT: 1.3, hopDelay: 0, hopV: 0, breathSeed: 1.7
   };
-  const FOLLOW_FAR = 1.45, FOLLOW_STOP = 1.08, PERSONAL = 0.98;
+  const FOLLOW_FAR = 1.48, FOLLOW_STOP = 1.11, PERSONAL = 1.0;   /* HO1이 조금 커서 머리끼리 안 겹치게 살짝 넓힘 */
   /* 잠자기: k = 0(깨어 있음) ~ 1(침대에 누움) */
   const sleep = { on: false, k: 0, zT: 0, zi: 0 };
   const BED_SIDE = [new V3(BED.x - 1.45, 0, BED.z + 0.55), new V3(BED.x - 1.4, 0, BED.z - 0.55)];
-  bun.bedSlot = new V3(BED.x - 0.47, 0.98, BED.z + 0.85);
+  bun.bedSlot = new V3(BED.x - 0.47, 0.98, BED.z + 0.85);   /* HO1이 커져도 발끝 자리는 그대로 (커진 만큼은 베개 쪽으로 감, 이불 밖으로 안 나오게) */
   bun2.bedSlot = new V3(BED.x + 0.47, 0.98, BED.z + 0.85);
   function goSleep(){
     if (sleep.on || Bus.mode !== 'room' || fl.active) return;
@@ -1762,7 +1765,7 @@ function boot(){
     }
     [['ho1', B1], ['ho2', B2]].forEach(([k, P]) => {
       const b = bubs[k]; if (b.hidden) return;
-      const s = toScreen(P.head.getWorldPosition(new V3()).add(new V3(0, 0.75, 0)));
+      const s = toScreen(P.head.getWorldPosition(new V3()).add(new V3(0, 0.75 * P.bunny.scale.y, 0)));
       b.style.left = s.x + 'px'; b.style.top = s.y + 'px';
     });
   }
@@ -1849,7 +1852,10 @@ function boot(){
   }, true);
 
   /* --- 동작 안무: T = 시작 후 초, hit(x) = 이번 틱에 x초를 지났는지 --- */
-  const W = (s, x, y, z) => { const f = s.face; return new V3(s.pos.x + Math.cos(f) * x + Math.sin(f) * z, FLOOR + 0.02 + y, s.pos.z - Math.sin(f) * x + Math.cos(f) * z); };
+  const W = (s, x, y, z) => {                         /* 그 캐릭터 몸 기준 자리 → 세계 좌표 (HO1은 키만큼 늘림) */
+    const f = s.face, k = s === bun ? HO1_K : 1; x *= k; y *= k; z *= k;
+    return new V3(s.pos.x + Math.cos(f) * x + Math.sin(f) * z, FLOOR + 0.02 + y, s.pos.z - Math.sin(f) * x + Math.cos(f) * z);
+  };
   const restW = (s, sd) => W(s, sd * HAND_REST.x, HAND_REST.y, HAND_REST.z);
   const via = (a, b, k) => a.lerp(b, k);                 /* a를 b 쪽으로 k만큼 (a가 바뀜) */
   const kk = (a, b, T) => sstep(a, b, T);
@@ -3052,7 +3058,7 @@ function boot(){
     sit: sitDown, stand: standUp, water: goWater, fridge: toggleFridge, replant, butterfly: flyButterfly,
     bake: startCook, cookMenu: openCookMenu, eatTray, cancelCook,
     get cookState(){ return { on: cook.on, ready: cook.ready, t: +cook.t.toFixed(2), result: cook.result, eat: !!cook.eat, faces: [bun.expr || '-', bun.bite || 0, bun2.expr || '-', bun2.bite || 0].join(','), tray: tray ? tray.kind + ':' + tray.cookies.filter(c => c.visible).length : null }; },
-    get state(){ return { seat: Object.assign({}, seat), water: water.on, sprout: sprout.stage, fridge: fridgeDoor.target, bun: [bun.pos.x, bun.pos.z, bun.moving], bun2: [bun2.pos.x, bun2.pos.z] }; },
+    get state(){ return { seat: Object.assign({}, seat), sleep: +sleep.k.toFixed(2), water: water.on, sprout: sprout.stage, fridge: fridgeDoor.target, bun: [bun.pos.x, bun.pos.z, bun.moving], bun2: [bun2.pos.x, bun2.pos.z] }; },
     rippleMove(i, u, v){ if (rippleU.uTime.value - lastRipple > 0.55) startRipple(u, v, 0.08); },
     drawer(i, on){ if (drawers[i]) { drawers[i].target = on ? 0.62 : 0; if (on) drawers[i].out.v += 1.5; } },
     grow(stage){
@@ -3086,6 +3092,7 @@ function boot(){
     actMenu: who => openActMenu(who || 'ho1'),
     get mono(){ return { on: mono.on, at: +(mono.at - time).toFixed(1), show: mono.show ? mono.show.who + ':' + mono.show.chars.join('') : null }; },
     monoSoon(){ mono.at = time + 0.5; },
+    sleep: goSleep, wake: wakeUp,
     get actState(){ return act ? { kind: act.kind, go: +act.go.toFixed(2), auto: act.auto } : null; },
     autoSoon(){ AUTO.at = time + 1; },
     bathPlay: k => ({ ho1: bathSplashFight, ho2: bathFoamHat, duck: bathDuckSqueak })[k](),
@@ -3220,8 +3227,8 @@ function boot(){
       });
     }
     P.shadow.position.set(P.bunny.position.x, FLOOR + 0.035, P.bunny.position.z);
-    const ss = 1 - Math.min(s.jumpY, 1.2) * 0.4; P.shadow.scale.set(ss, ss, ss);
-    P.shadow.material.opacity = ss * (1 - se) * (1 - 0.6 * sk);
+    const ss = (1 - Math.min(s.jumpY, 1.2) * 0.4) * P.bunny.scale.x; P.shadow.scale.set(ss, ss, ss);
+    P.shadow.material.opacity = ss / P.bunny.scale.x * (1 - se) * (1 - 0.6 * sk);
   }
 
   let perfN = 0, perfSum = 0, perfStage = 0;
@@ -3457,12 +3464,12 @@ function boot(){
     placeCookUI();
     placeActMenu();
     placeMono();
-    /* 확인용 근접 카메라: 주소 끝에 ?closeup=ho1 (또는 ho2) &yaw=각도 &d=거리 */
-    if (CLOSEUP) {
-      const B = CLOSEUP.who === 'ho2' ? B2 : B1, O = B === B1 ? B2 : B1;
-      O.bunny.visible = false; O.shadow.visible = false;
+    /* 확인용 근접 카메라: 주소 끝에 ?closeup=ho1 (또는 ho2, both) &yaw=각도 &d=거리 &h=높이 */
+    if (CLOSEUP) {                                        /* closeup=both: 둘 다 보이게, 둘 사이 가운데를 봄 */
+      const both = CLOSEUP.who === 'both', B = CLOSEUP.who === 'ho2' ? B2 : B1, O = B === B1 ? B2 : B1;
+      if (!both) { O.bunny.visible = false; O.shadow.visible = false; }
       document.body.classList.add('closeup');
-      const c = B.head.getWorldPosition(new V3());
+      const c = both ? B1.head.getWorldPosition(new V3()).add(B2.head.getWorldPosition(new V3())).multiplyScalar(0.5) : B.head.getWorldPosition(new V3());
       const yaw = B.bunny.rotation.y + CLOSEUP.yaw;
       camera.position.set(c.x + Math.sin(yaw) * CLOSEUP.d, c.y + CLOSEUP.h, c.z + Math.cos(yaw) * CLOSEUP.d);
       camera.lookAt(c.x, c.y - 0.1, c.z);
