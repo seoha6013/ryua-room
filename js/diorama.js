@@ -990,6 +990,32 @@ function boot(){
       put(sph(0.011, 0x3E3A46, { roughness: 0.5 }, 10), Math.sin(a) * rr, HY + y, Math.cos(a) * rr, tilt);
     }
 
+    /* 쿠키 먹을 때 표정 (평소엔 숨김): smile = ^^ 눈 + 웃는 입, yuck = >< 눈 + 꼬불 입 + 땀
+       얼굴 위 한 점(a = 좌우 각도, y = 높이)에 붙이는 도우미 */
+    const ink = mat(0x3E3A46, { roughness: 0.5, emissive: 0x3E3A46, emissiveIntensity: 0.3 });
+    const onFace = (a, y, out) => {
+      const rr = Math.sqrt(HR * HR - y * y) + (out || 0.004), g = new THREE.Group();
+      g.position.set(Math.sin(a) * rr, HY + y, Math.cos(a) * rr); g.rotation.y = a; tilt.add(g); g.visible = false; return g;
+    };
+    const ey0 = c.eyeY == null ? -0.03 : c.eyeY;
+    const arc = (r, t) => new THREE.Mesh(new THREE.TorusGeometry(r, t, 8, 20, Math.PI), ink);
+    const happyEyes = [-1, 1].map(s => { const g = onFace(s * 0.33, ey0 - 0.02); g.add(arc(0.05, 0.016)); return g; });
+    const yuckEyes = [-1, 1].map(s => {
+      const g = onFace(s * 0.33, ey0 - 0.03), dir = -s;            /* 보는 쪽에서 > < 모양 (가운데를 향함) */
+      [1, -1].forEach(up => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.022, 0.012), ink); b.position.set(0, up * 0.021, 0); b.rotation.z = -up * dir * 0.5; g.add(b); });
+      return g;
+    });
+    const smile = onFace(0, ey0 - 0.17); { const m = arc(0.05, 0.014); m.rotation.z = Math.PI; smile.add(m); }
+    const frown = onFace(0, ey0 - 0.18);
+    [-1.5, -0.5, 0.5, 1.5].forEach((k, i) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.014, 0.012), ink); b.position.set(k * 0.03, 0, 0); b.rotation.z = i % 2 ? -0.6 : 0.6; frown.add(b); });
+    const sweat = put(sph(0.045, 0xA9D4F5, { roughness: 0.2, emissive: 0x7FB8E8, emissiveIntensity: 0.3 }, 14), -0.52, HY + 0.12, 0.22, tilt);
+    sweat.scale.set(0.8, 1.3, 0.8); sweat.visible = false;
+    /* 손에 든 쿠키 (입 앞, 한 입씩 작아짐) + 작은 손 */
+    const snack = new THREE.Group(); snack.position.set(0.1, HY - 0.36, HR * 0.95); tilt.add(snack); snack.visible = false;
+    const snackC = put(cyl(0.075, 0.075, 0.025, COL.white, { roughness: 0.85 }, 18), 0, 0.03, 0, snack); snackC.rotation.x = Math.PI / 2 - 0.35;
+    put(sph(0.05, SKIN, null, 14), 0.02, -0.04, -0.01, snack);
+    const faceFx = { happyEyes, yuckEyes, smile, frown, sweat, snack, snackC };
+
     /* 발: 흰 타원 + 외곽선 */
     const feet = [-1, 1].map(s => {
       const f = put(sph(0.11, COL.white, null, 16), s * 0.15, 0.06, 0.08, bunny);
@@ -1000,7 +1026,7 @@ function boot(){
     shadow.rotation.x = -Math.PI / 2; shadow.renderOrder = 1; scene.add(shadow);
     bunny.traverse(o => { o.userData[tag] = true; });
     /* ears 자리에 머리카락 그룹을 넣어 걸을 때 살짝 흔들리게 함 (sway = 흔들림 세기) */
-    return { bunny, bob, tilt, head, ears: [hair], eyes, feet, shadow, sway: 0.14 };
+    return { bunny, bob, tilt, head, ears: [hair], eyes, feet, shadow, sway: 0.14, faceFx };
   }
   /* HO1: 조종하는 캐릭터 (노란 곱슬) */
   const B1 = makeChibi(CHARS.ho1, 'bunny');
@@ -1054,7 +1080,7 @@ function boot(){
   function sitDown(where){
     if (seat.on || sleep.on || seat.k > 0 || Bus.mode !== 'room' || fl.active) return;
     const S = SEATS[where];
-    walkTo(S.stand[0].x, S.stand[0].z, S.yaw[0], () => { seat.where = where; seat.on = true; Bus.audio.hop(); });
+    walkTo(S.stand[0].x, S.stand[0].z, S.yaw[0], () => { seat.where = where; seat.on = true; Bus.audio.hop(); if (where === 'table') tableHint(); });
   }
   function standUp(){
     if (!seat.on) return;
@@ -1202,7 +1228,7 @@ function boot(){
      ========================================================= */
   const COOK_TEXT = {                                   /* 화면 문구: 여기만 바꾸면 됨 */
     ask: '누가 구울까?', ho1: '류스케(HO1)가 굽기', ho2: '아키사(HO2)가 굽기', cancel: '취소',
-    success: '성공!', fail: '…탔다.', yum: '맛있다!', bitter: '…으윽.'
+    success: '성공!', fail: '…탔다.', yum: '맛있다!', bitter: '…으윽.', hint: '🍪 쿠키를 눌러 봐'
   };
   const COOK = { spot: wpos(kitchen, 0.27, 0, 1.0), watch: wpos(kitchen, -0.6, 0, 1.35) };   /* 굽는 자리 · 지켜보는 자리 (주방을 옮기면 따라감) */
   const cook = { on: false, who: null, t: 0, ready: false, a1: false, a2: false, wait: 0, ticks: 0, result: null, eat: null };
@@ -1298,18 +1324,20 @@ function boot(){
     bowl.visible = false; ovenInner.material.emissiveIntensity = 0; ovenGlass.material.emissiveIntensity = 0; ovenPivot.rotation.x = 0;
     if (tray && tray.kind === 'raw') dropTray();
     [bun, bun2].forEach(s => { if (s.fx) { s.fx.sway = 0; s.fx.shiver = 0; } });
-    hush('ho1'); hush('ho2');
+    clearFaces(); hush('ho1'); hush('ho2');
   }
-  /* 쟁반 누르기: 성공 쿠키 = 둘이 식탁에서 하나씩 / 탄 쿠키 = 류스케가 맛보고 부르르 */
+  function clearFaces(){ [bun, bun2].forEach(s => { s.expr = null; s.bite = 0; s.chew = 0; }); }
+  const atTable = () => seat.on && seat.where === 'table';
+  /* 쟁반 누르기: 둘이 식탁 의자에 앉아서 쿠키를 하나씩 들고 먹음
+     류스케(HO1)가 구운 쿠키 = 웃으면서 / 아키사(HO2)가 구운(탄) 쿠키 = 찡그리면서 */
   function eatTray(){
     if (!tray || cook.on || cook.eat || tray.kind === 'raw' || Bus.mode !== 'room') return;
-    if (sleep.on) wakeUp(); if (seat.on) standUp();
-    const S = SEATS.table, tc = table.position;
-    const f1 = Math.atan2(tc.x - S.stand[0].x, tc.z - S.stand[0].z), f2 = Math.atan2(tc.x - S.stand[1].x, tc.z - S.stand[1].z);
-    cook.eat = { kind: tray.kind, t: 0, a1: false, step: 0 };
-    walkTo(S.stand[0].x, S.stand[0].z, f1, () => { if (cook.eat) cook.eat.a1 = true; });
-    budTarget = tray.kind === 'good' ? { x: S.stand[1].x, z: S.stand[1].z, face: f2, arrived: false } : null;
+    if (sleep.on) wakeUp();
+    if (seat.on && !atTable()) standUp();               /* 소파에 앉아 있었으면 일어나서 식탁으로 */
+    cook.eat = { kind: tray.kind, t: 0, go: 0, asked: false, started: false };
   }
+  /* 식탁에 앉았을 때 쟁반이 있으면 알려 줌 */
+  function tableHint(){ if (tray && tray.kind !== 'raw' && !cook.eat) say('ho1', COOK_TEXT.hint, '', 2.4); }
   function eatOne(who){
     const c = tray && tray.cookies.find(x => x.visible); if (!c) return false;
     c.visible = false; c.traverse(o => { const k = pickables.indexOf(o); if (k >= 0) pickables.splice(k, 1); });
@@ -1402,25 +1430,44 @@ function boot(){
     tray.g.rotation.y = mix(kitchen.rotation.y, table.rotation.y, tw(7.6, 8.6, T));
     if (T > 8.8) { cook.on = false; budTarget = null; bun.idle = 0; bun2.idle = 0; }
   }
+  /* 먹기 진행: 식탁에 앉기 → 둘이 쿠키를 하나씩 집음 → 세 입 오물오물 → 반응
+     류스케 쿠키(good) = ^^ 웃는 얼굴 + 하트 / 아키사 쿠키(burnt) = >< 찡그린 얼굴 + 땀 + 부르르 */
+  const EAT_AT = [0.3, 0.9, 1.5, 2.1, 2.4];           /* 집기 · 한 입 · 두 입 · 세 입 · 반응 (초) */
   function stepEat(h){
     const e = cook.eat;
-    if (!e.a1 || (budTarget && !budTarget.arrived && e.t < 6)) { e.t += h; if (e.t < 6) return; }
-    e.go = (e.go || 0) + h;
-    if (e.kind === 'good') {
-      /* 둘이 하나씩: 류스케 → 아키사 */
-      if (e.step === 0 && e.go > 0.2) { e.step = 1; if (eatOne()) { bun.squash.v -= 2; spawnHearts(1); say('ho1', COOK_TEXT.yum, 'ok', 1.4); Bus.audio.tap(); } }
-      if (e.step === 1 && e.go > 0.9) { e.step = 2; if (eatOne()) { bun2.squash.v -= 2; spawnHearts(1, 'ho2'); hopBud(2.4); Bus.audio.tap(); } }
-      if (e.step === 2 && e.go > 1.6) {
-        e.step = 3; cook.eat = null; budTarget = null;
-        if (!tray.cookies.some(c => c.visible)) dropTray();             /* 다 먹으면 쟁반 치움 */
+    if (!atTable() || seat.k < 1) {
+      e.t += h;
+      if (!e.asked && !seat.on && seat.k === 0 && !sleep.on) { e.asked = true; sitDown('table'); }
+      if (e.t > 12) { cook.eat = null; clearFaces(); }   /* 못 앉으면 그만 */
+      return;
+    }
+    if (!e.started) {
+      e.started = true; hush('ho1'); hush('ho2');
+      e.p = [{ s: bun, P: B1, who: 'ho1', o: 0, n: 0 }, { s: bun2, P: B2, who: 'ho2', o: 0.3, n: 0 }];
+    }
+    e.go += h;
+    const good = e.kind === 'good';
+    spring(bun2.squash, 0, 190, 11, h);                 /* 앉아 있는 동안 HO2 몸 출렁임 */
+    e.p.forEach(p => {
+      const s = p.s;
+      s.chew = Math.max(0, (s.chew || 0) - h);
+      if (p.n >= EAT_AT.length || e.go < EAT_AT[p.n] + p.o) return;
+      if (p.n === 0) {                                  /* 쟁반에서 하나 집기 */
+        if (!eatOne()) { p.n = EAT_AT.length; return; }
+        p.P.faceFx.snackC.material.color.setHex(COOKIE_COL[e.kind]);
+        s.bite = 3; s.expr = good ? 'smile' : null; Bus.audio.tap();
+      } else if (p.n < 4) {                             /* 한 입씩 */
+        s.bite--; s.chew = 0.45; s.squash.v -= 1.6; Bus.audio.tap();
+        if (!good) { s.expr = 'yuck'; fxOf(s).shiver = Math.max(fxOf(s).shiver, reduced() ? 0.2 : 0.45); }
+      } else {                                          /* 다 먹고 반응 */
+        if (good) { spawnHearts(p.who === 'ho1' ? 2 : 1, p.who === 'ho2' ? 'ho2' : undefined); say(p.who, p.who === 'ho1' ? COOK_TEXT.yum : '♥', p.who === 'ho1' ? 'ok' : 'emo', 1.6); }
+        else { fxOf(s).shiver = reduced() ? 0.5 : 1.3; say(p.who, p.who === 'ho1' ? COOK_TEXT.bitter : '💦', p.who === 'ho1' ? 'bad' : 'emo', 1.6); }
       }
-    } else {
-      /* 탄 쿠키: 류스케가 하나 맛보고 부르르 → 쟁반 사라짐 */
-      if (e.step === 0 && e.go > 0.2) { e.step = 1; eatOne(); bun.squash.v -= 2; Bus.audio.tap(); }
-      if (e.step === 1 && e.go > 0.7) { e.step = 2; fxOf(bun).shiver = reduced() ? 0.5 : 1.3; say('ho1', COOK_TEXT.bitter, 'bad', 1.6); }
-      if (e.step === 2 && e.go > (reduced() ? 1.3 : 2.2)) {
-        if (tray) { const k = 1 - tw(0, 0.5, e.go - (reduced() ? 1.3 : 2.2)); tray.g.scale.setScalar(Math.max(0.001, k)); if (k <= 0.01) { dropTray(); cook.eat = null; } }
-      }
+      p.n++;
+    });
+    if (e.go > EAT_AT[4] + 0.3 + 1.4) {                 /* 표정 풀고 끝. 다 먹었으면 쟁반 치움 */
+      cook.eat = null; clearFaces();
+      if (tray && !tray.cookies.some(c => c.visible)) dropTray();
     }
   }
   /* HO2를 정해진 자리로 (굽기·먹기 동안) */
@@ -1513,8 +1560,9 @@ function boot(){
   }
   function jumpAction(){
     if (sleep.on) { wakeUp(); return; }
+    if (cook.eat) return;
     if (seat.on) { standUp(); return; }
-    if (seat.k > 0 || water.on || cook.on || cook.eat) return;
+    if (seat.k > 0 || water.on || cook.on) return;
     if (Bus.mode !== 'room' || fl.active || bun.jumpY > 0.01 || bun.jumpV !== 0) return;
     const id = nearSection();
     hop(4.4);
@@ -1712,6 +1760,12 @@ function boot(){
     if (hit.object.userData.floor) return { type: 'floor', point: hit.point };
     return null;
   }
+  /* 식탁에 앉아 있을 때: 캐릭터 머리에 가려져도 쟁반·식탁을 눌렀으면 먹기 */
+  function hitsTray(cx, cy){
+    ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    return ray.intersectObjects(pickables, false).some(x => x.object.userData.use === 'tray' || x.object.userData.use === 'table');
+  }
   const canvas = renderer.domElement;
   let down = null, hoverXY = null;
   canvas.addEventListener('pointerdown', e => { if (edit.on) return; down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
@@ -1723,7 +1777,11 @@ function boot(){
     down = null;
     if (moved > 7 || long || Bus.mode !== 'room' || fl.active) return;
     if (sleep.on) { wakeUp(); return; }                 /* 자는 중엔 아무 데나 누르면 깸 */
-    if (seat.on) { standUp(); return; }                 /* 앉아 있을 땐 아무 데나 누르면 일어남 */
+    if (cook.eat) return;                                /* 먹는 동안엔 눌러도 그대로 */
+    if (seat.on) {                                       /* 앉아 있을 땐 아무 데나 누르면 일어남 (식탁에서 쿠키 누르면 먹음) */
+      if (atTable() && seat.k >= 1 && tray && tray.kind !== 'raw' && hitsTray(e.clientX, e.clientY)) eatTray(); else standUp();
+      return;
+    }
     if (seat.k > 0 || water.on) return;
     if (cook.on || cook.eat) return;                     /* 굽거나 먹는 동안엔 눌러도 안 걸음 */
     const h = pick(e.clientX, e.clientY);
@@ -2377,7 +2435,7 @@ function boot(){
     setTvImage,
     sit: sitDown, stand: standUp, water: goWater, fridge: toggleFridge, replant, butterfly: flyButterfly,
     bake: startCook, cookMenu: openCookMenu, eatTray, cancelCook,
-    get cookState(){ return { on: cook.on, ready: cook.ready, t: +cook.t.toFixed(2), result: cook.result, eat: !!cook.eat, tray: tray ? tray.kind + ':' + tray.cookies.filter(c => c.visible).length : null }; },
+    get cookState(){ return { on: cook.on, ready: cook.ready, t: +cook.t.toFixed(2), result: cook.result, eat: !!cook.eat, faces: [bun.expr || '-', bun.bite || 0, bun2.expr || '-', bun2.bite || 0].join(','), tray: tray ? tray.kind + ':' + tray.cookies.filter(c => c.visible).length : null }; },
     get state(){ return { seat: Object.assign({}, seat), water: water.on, sprout: sprout.stage, fridge: fridgeDoor.target, bun: [bun.pos.x, bun.pos.z, bun.moving], bun2: [bun2.pos.x, bun2.pos.z] }; },
     rippleMove(i, u, v){ if (rippleU.uTime.value - lastRipple > 0.55) startRipple(u, v, 0.08); },
     drawer(i, on){ if (drawers[i]) { drawers[i].target = on ? 0.62 : 0; if (on) drawers[i].out.v += 1.5; } },
@@ -2477,6 +2535,20 @@ function boot(){
     const blinking = s.blinkT < 0.16;
     P.eyes.forEach(e => { e.scale.y = blinking || se > 0.8 ? 0.12 : 1; });   /* 자는 동안은 눈 감음 */
     if (s.blinkT < 0) s.blinkT = Math.random() < 0.25 ? 0.4 : 2.0 + Math.random() * 2.2;   /* 가끔 두 번 연속 깜빡 */
+    /* 쿠키 먹는 표정: s.expr = 'smile' | 'yuck' | null, s.bite = 손에 남은 쿠키(3~0), s.chew = 오물오물 */
+    const F = P.faceFx;
+    if (F) {
+      const ex = s.expr || null, chew = (s.chew || 0) > 0 && !still ? Math.abs(Math.sin(time * 16)) : 0;
+      P.eyes.forEach(e => { e.visible = !ex; });
+      F.happyEyes.forEach(g => { g.visible = ex === 'smile'; });
+      F.yuckEyes.forEach(g => { g.visible = ex === 'yuck'; });
+      F.smile.visible = ex === 'smile'; F.frown.visible = ex === 'yuck'; F.sweat.visible = ex === 'yuck';
+      F.smile.scale.set(1, 1 + chew * 0.5, 1); F.frown.scale.set(1 - chew * 0.2, 1 + chew * 0.6, 1);
+      if (ex === 'yuck') F.sweat.position.y = HY + 0.12 - ((time * 0.25) % 0.12);
+      const b = s.bite || 0;
+      F.snack.visible = b > 0;
+      if (b > 0) F.snackC.scale.setScalar([0, 0.45, 0.72, 1][b]);
+    }
     P.shadow.position.set(P.bunny.position.x, FLOOR + 0.035, P.bunny.position.z);
     const ss = 1 - Math.min(s.jumpY, 1.2) * 0.4; P.shadow.scale.set(ss, ss, ss);
     P.shadow.material.opacity = ss * (1 - se) * (1 - 0.6 * sk);
