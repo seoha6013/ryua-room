@@ -737,7 +737,7 @@ function boot(){
   flag.rotation.x = flagS.x;
   makeSection('mail', mail, new V3(0, 2.0, 0));
 
-  /* 05 키 큰 책장 = 기록장. 파란 책 = 명장면, 노란 책 = 주사위 명예의 전당 (누르면 그 탭으로)
+  /* 05 키 큰 책장 = 기록장. 파란 책 = 명장면, 노란 책 = 주사위 명예의 전당, 분홍 책 = 명대사 (누르면 그 탭으로)
      뒷벽 주방과 냉장고 사이 빈자리. TV 위 작은 선반은 장식 그대로 */
   const SHELF = { x: 0.45, z: -4.6 };
   const shelf = new THREE.Group(); shelf.position.set(SHELF.x, FLOOR, SHELF.z); scene.add(shelf);
@@ -777,6 +777,9 @@ function boot(){
     die.traverse(o => { o.userData.recTab = 'dice'; });
     /* 아래 칸들: 다른 색 장식 책 · 상자 · 바구니 */
     row(SH[1], [[0.07, 0.36, 0xFFC3D3], [0.06, 0.32, 0xC8E6C9], [0.08, 0.38, 0xE6E6FA], [0.06, 0.3, 0xFFD9B8], [0.07, 0.35, 0xB4E8BD, -0.18]]);
+    /* 분홍 책 = 명대사 (조금 크고 진한 분홍 + 말풍선 스티커) */
+    row(SH[1], [[0.1, 0.4, 0xF48FB1]], 'quotes', 0.06);
+    { const bub = put(rbox(0.07, 0.05, 0.012, 0.02, 0xFFFFFF), 0.11, SH[1] + 0.2, 0.18, g); bub.traverse(o => { o.userData.recTab = 'quotes'; }); }
     put(rbox(0.22, 0.16, 0.24, 0.03, 0xCEDEF2), 0.3, SH[1] + 0.08, 0.02, g);
     put(rbox(0.38, 0.05, 0.26, 0.012, 0xFFE3EB), -0.18, SH[0] + 0.025, 0.03, g);                          /* 눕혀 둔 큰 책 */
     put(rbox(0.36, 0.05, 0.25, 0.012, 0xDEDAFB), -0.17, SH[0] + 0.075, 0.03, g).rotation.y = 0.08;

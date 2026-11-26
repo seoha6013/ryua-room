@@ -76,7 +76,7 @@
     '.panel .rc-lerr{color:#B3261E;font-size:13px;margin:6px 0 0;min-height:1em}';
   document.head.appendChild(css);
 
-  var TABS = ['scenes', 'dice', 'adult'];
+  var TABS = ['scenes', 'dice', 'quotes', 'adult'];
   var REACTS = ['❤️', '😭', '👍', '🤣'];
   var VERD = { crit: '🌟 대성공', fumble: '💀 대실패', other: '기타' };
   var RECS = [], ADULT = [], comments = {}, counts = {}, loaded = false, err = '';
@@ -156,6 +156,10 @@
   function render(){
     var view = $('rcView'); if (!view) return;
     document.querySelectorAll('.rc-tab').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.rctab === S.tab ? 'true' : 'false'); });
+    if (S.tab === 'quotes') {                           /* 명대사 탭은 js/quotes.js가 그림 (한 번 그린 뒤엔 그대로 둠: 입력 중인 글 보존) */
+      if (window.PUBAM_QUOTES && !document.getElementById('qtList')) window.PUBAM_QUOTES.mount(view, $('rcBar'));
+      return;
+    }
     bar();
     if (!loaded) { view.innerHTML = '<p class="rc-empty">' + (err || '기록을 불러오는 중…') + '</p>'; return; }
     var open = [].map.call(view.querySelectorAll('.rc-item[open]'), function(d){ return d.id; });
@@ -241,9 +245,9 @@
     if (t !== 'adult' && document.body.dataset.mode === 'records') history.replaceState(null, '', '#' + t);
   }
   window.PUBAM_RECORDS = { setTab: setTab };
-  /* index.html#scenes / #dice 로 들어오면 책장 기록장을 바로 엶 */
+  /* index.html#scenes / #dice / #quotes 로 들어오면 책장 기록장을 바로 엶 */
   function fromHash(){
-    var h = location.hash.slice(1); if (h !== 'scenes' && h !== 'dice') return;
+    var h = location.hash.slice(1); if (h !== 'scenes' && h !== 'dice' && h !== 'quotes') return;
     S.tab = h; render();
     var tries = 0;
     (function go(){

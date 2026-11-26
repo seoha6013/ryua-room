@@ -150,16 +150,17 @@
     </div>
   </section>
 
-  <!-- 05 책장: 기록장 (명장면 · 주사위 명예의 전당, js/records.js) -->
+  <!-- 05 책장: 기록장 (명장면 · 주사위 명예의 전당 · 명대사, js/records.js + js/quotes.js) -->
   <section class="panel glass" id="panel-records" aria-labelledby="rec-title" inert>
     <div data-stagger>
       <p class="eyebrow" style="--ey:#6B5F1E;--ey-dot:#F2E6A0">책장 05 · 기록장</p>
       <h2 class="panel__head" id="rec-title" tabindex="-1">책장 · 기록장</h2>
-      <p>세션에서 남기고 싶은 장면과 주사위를 모아 둬요. 그림을 누르면 크게 넘겨 볼 수 있어요.</p>
+      <p>세션에서 남기고 싶은 장면과 주사위, 명대사를 모아 둬요. 그림을 누르면 크게 넘겨 볼 수 있어요.</p>
       <div class="rc-tabs" role="tablist" aria-label="기록장">
         <button class="rc-tab" type="button" role="tab" data-rctab="scenes" style="--t:#DDE3F5">📘 명장면</button>
         <button class="rc-tab" type="button" role="tab" data-rctab="dice" style="--t:#F2E6A0">🎲 주사위 명예의 전당</button>
-        <button class="rc-tab" type="button" role="tab" data-rctab="adult" style="--t:#FFD1DC">성인 🔒</button>
+        <button class="rc-tab" type="button" role="tab" data-rctab="quotes" style="--t:#FFD1DC">💬 명대사</button>
+        <button class="rc-tab" type="button" role="tab" data-rctab="adult" style="--t:#E6E6FA">성인 🔒</button>
       </div>
       <div class="rc-bar" id="rcBar"></div>
       <div id="rcView" aria-live="polite"></div>
@@ -214,7 +215,8 @@
 <script src="js/viewer.js"></script>
 <script src="js/gallery.js?v=20261126"></script>
 <script src="js/logs.js"></script>
-<script src="js/records.js"></script>
+<script src="js/records.js?v=quotes1"></script>
+<script src="js/quotes.js?v=quotes1"></script>
 <!-- Three.js r170 subset (MIT), bundled locally so the template works offline -->
 <script src="js/vendor/three-diorama.min.js"></script>
 <!-- UI layer: panels, audio, forms. Works on its own if the 3D engine cannot load. -->
