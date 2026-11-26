@@ -424,8 +424,15 @@ function boot(){
     g.userData.paint = walls;
   }
   bath.scale.setScalar(1.2);
+  bathDuck.traverse(o => { o.userData.duck = true; });   /* 욕조 안에서 오리만 따로 누를 수 있게 */
+  /* 물장구 물방울 (욕조 안에서 HO1을 누르면 서로 물을 튀김) */
+  const bathSplash = Array.from({ length: 24 }, () => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), mat(0x9FD8FF, { transparent: true, opacity: 0.85, emissive: 0x9FD8FF, emissiveIntensity: 0.35, roughness: 0.15 }));
+    m.visible = false; m.castShadow = false; scene.add(m);
+    return { m, vel: new V3(), alive: false, life: 0 };
+  });
   /* 떠오르는 비눗방울 */
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 24; i++) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), mat(0xE8F6FF, { transparent: true, opacity: 0.55, emissive: 0xBFE6FF, emissiveIntensity: 0.4, roughness: 0.1 }));
     m.visible = false; m.castShadow = false; scene.add(m);
     bathBubbles.push({ m, life: 0, max: 2, alive: false, vel: new V3(), sz: 1 });
@@ -791,6 +798,7 @@ function boot(){
     m.add(o); return o;
   }
   const SKIN = 0xFBE3D6;
+  const FLUSH_COL = new THREE.Color(0xFF8F8F);   /* 목욕 오래 하면 볼 색 */
   /* 캐릭터별 색·머리 모양: 여기 숫자만 바꾸면 됨 */
   const CHARS = {
     ho1: { style: 'curly', hair: 0xF0E6A8, hairDark: 0xD5C47C,
@@ -1028,10 +1036,10 @@ function boot(){
     });
 
     /* 볼터치 */
-    [-1, 1].forEach(s => {
+    const cheeks = [-1, 1].map(s => {
       const a = s * 0.62, y = (c.eyeY == null ? -0.03 : c.eyeY) - 0.07, rr = Math.sqrt(HR * HR - y * y) - 0.02;
       const ch = put(sph(0.075, c.cheek, null, 16), Math.sin(a) * rr, HY + y, Math.cos(a) * rr, tilt);
-      ch.rotation.y = a; ch.scale.set(1, 0.55, 0.35);
+      ch.rotation.y = a; ch.scale.set(1, 0.55, 0.35); return ch;
     });
 
     /* 눈 밑 점 */
@@ -1074,9 +1082,20 @@ function boot(){
 
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2; shadow.renderOrder = 1; scene.add(shadow);
+    /* 목욕할 때만: 머리 위 접은 수건 + 거품 모자 (평소엔 숨김) */
+    const towel = new THREE.Group(); towel.position.set(0, HY + 0.5, -0.03); towel.rotation.x = -0.12; tilt.add(towel); towel.visible = false;
+    const towelCol = tag === 'bunny' ? 0xFFD1DC : 0xCFE6FF;
+    put(rbox(0.38, 0.08, 0.27, 0.035, towelCol, { roughness: 0.95 }), 0, 0, 0, towel);
+    put(rbox(0.3, 0.07, 0.21, 0.03, towelCol, { roughness: 0.95 }), 0, 0.065, 0, towel);
+    put(rbox(0.385, 0.018, 0.04, 0.008, 0xFFFFFF, { roughness: 0.9 }), 0, 0.01, 0.1, towel);   /* 줄무늬 */
+    const foamHat = new THREE.Group(); foamHat.position.set(0, HY + 0.62, -0.03); tilt.add(foamHat); foamHat.visible = false;
+    [[0, 0, 0, 0.15], [-0.11, -0.03, 0.04, 0.1], [0.12, -0.02, -0.03, 0.11], [0.02, 0.15, 0, 0.1], [0.03, 0.26, 0.01, 0.06]].forEach(([x, y, z, r]) =>
+      put(sph(r, COL.white, { roughness: 0.55, emissive: 0xFFFFFF, emissiveIntensity: 0.15 }, 16), x, y, z, foamHat));
+    const bathWear = { body, collar, tie, towel, foamHat, cheeks, shirt: c.shirt, cheek: c.cheek };
+
     bunny.traverse(o => { o.userData[tag] = true; });
     /* ears 자리에 머리카락 그룹을 넣어 걸을 때 살짝 흔들리게 함 (sway = 흔들림 세기) */
-    return { bunny, bob, tilt, head, ears: [hair], eyes, feet, shadow, sway: 0.14, faceFx };
+    return { bunny, bob, tilt, head, ears: [hair], eyes, feet, shadow, sway: 0.14, faceFx, bathWear };
   }
   /* HO1: 조종하는 캐릭터 (노란 곱슬) */
   const B1 = makeChibi(CHARS.ho1, 'bunny');
@@ -1130,8 +1149,140 @@ function boot(){
       stand: [wpos(bath, -0.45, 0, 1.05), wpos(bath, 0.45, 0, 1.05)]   /* 앞(방 쪽 긴 면)에서 다가감 */
     }
   };
-  const bathFx = { k: 0, bubT: 0, talkT: 0, talk: 0 };
-  const BATH_TEXT = [['따끈따끈~', '♨'], ['개운하다!', '♥'], ['거품 봐!', '…후우.']];
+  const bathFx = { k: 0, bubT: 0, talkT: 0, talk: 0, q: [], t: 0, soak: 0, hot: false, was: false, water: -1, foam: 0, duck: { y: 0, v: 0, spin: 0 } };
+  const BATH_TEXT = [['따끈따끈~', '♨'], ['개운하다!', '♥'], ['거품 봐!', '…후우.'], ['노래 부를까?', '♪'], ['오리 귀엽지?', '응.'], ['여기가 천국이야~', '…좋네.']];
+  const BATH_WATER = [['보글보글~', '♪'], ['거품 더 넣을까?', '이미 많은데.'], ['비눗방울 크다!', '…예쁘네.'], ['후~ 불어 볼래?', '후.']];
+  const pickOne = a => a[Math.floor(Math.random() * a.length)];
+  /* 욕조 반응: 순서대로 일어날 일을 줄 세워 두고(q) stepBath에서 시간 맞춰 실행. 나오면 다 취소 */
+  const bathSaid = new Set();
+  function bsay(who, text, cls, secs){ bathSaid.add(text); say(who, text, cls, secs); }
+  function bathLater(sec, fn){ bathFx.q.push({ at: bathFx.t + sec, fn }); }
+  const bathBusy = () => bathFx.q.length > 0;
+  const headOf = s => (s === bun ? B1 : B2).head.getWorldPosition(new V3());
+  function bubbleBurst(at, n){
+    for (let i = 0; i < n; i++) {
+      const b = bathBubbles.find(x => !x.alive); if (!b) break;
+      b.alive = true; b.life = 0; b.max = 1.4 + Math.random() * 1.2; b.sz = 0.7 + Math.random() * 1.1;
+      b.m.position.copy(at).add(new V3((Math.random() - 0.5) * 0.4, Math.random() * 0.1, (Math.random() - 0.5) * 0.4));
+      b.vel.set((Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6);
+      b.m.visible = true;
+    }
+  }
+  /* from이 to 얼굴 쪽으로 물을 튀김 (포물선) */
+  function splashAt(from, to){
+    const a = headOf(from), b = headOf(to), G = 7;
+    a.y -= 0.4;
+    for (let i = 0; i < (reduced() ? 4 : 9); i++) {
+      const d = bathSplash.find(x => !x.alive); if (!d) break;
+      d.alive = true; d.life = 0; d.m.visible = true; d.m.scale.setScalar(0.7 + Math.random() * 0.6);
+      d.m.position.copy(a).add(new V3((Math.random() - 0.5) * 0.25, 0, (Math.random() - 0.5) * 0.25));
+      const tt = 0.5 * (0.85 + Math.random() * 0.3);
+      d.vel.set((b.x + (Math.random() - 0.5) * 0.35 - d.m.position.x) / tt,
+                (b.y + (Math.random() - 0.4) * 0.3 - d.m.position.y + 0.5 * G * tt * tt) / tt,
+                (b.z + (Math.random() - 0.5) * 0.35 - d.m.position.z) / tt);
+    }
+  }
+  const shake = (s, k) => { fxOf(s).shiver = reduced() ? 0.2 : k; };
+  /* HO1 누름: 물장구 → HO2가 맞고 반격 */
+  function bathSplashFight(){
+    bun.expr = 'smile'; bsay('ho1', pickOne(['에잇!', '물 공격~!', '받아라!']), 'ok', 1.4);
+    splashAt(bun, bun2); Bus.audio.drop(1); bun.squash.v -= 2;
+    bathLater(0.55, () => { bun2.expr = 'yuck'; shake(bun2, 0.6); bsay('ho2', '…!', 'emo', 1.1); });
+    bathLater(1.5, () => { bun2.expr = 'smile'; splashAt(bun2, bun); Bus.audio.drop(2); bun2.squash.v -= 2; bsay('ho2', pickOne(['반격.', '받아.', '두 배로.']), 'emo', 1.3); });
+    bathLater(2.05, () => { bun.expr = 'yuck'; shake(bun, 0.6); bsay('ho1', '으앗, 차가워!', 'bad', 1.5); });
+    bathLater(3.3, () => { bun.expr = 'smile'; spawnHearts(1); bsay('ho1', '하하하!', 'ok', 1.4); });
+    bathLater(4.4, () => { bun.expr = null; bun2.expr = null; });
+  }
+  /* HO2 누름: 거품 모자. 없음 → HO1 머리에 → HO2 머리에 → HO2가 털어냄 (돌아가며) */
+  function bathFoamHat(){
+    const st = bathFx.foam; bathFx.foam = (st + 1) % 3;
+    if (st === 0) {
+      bun2.expr = 'smile'; bsay('ho2', '가만히 있어 봐.', 'emo', 1.4); Bus.audio.poof();
+      bathLater(0.5, () => { bun.foamOn = true; bubbleBurst(headOf(bun).add(new V3(0, 0.55, 0)), 4); Bus.audio.chime(); });
+      bathLater(1.3, () => { bun.expr = 'smile'; bsay('ho1', '이게 뭐야~?', 'ok', 1.5); });
+      bathLater(2.4, () => { spawnHearts(1, 'ho2'); bsay('ho2', '잘 어울려.', 'emo', 1.5); });
+      bathLater(3.6, () => { bun.expr = null; bun2.expr = null; });
+    } else if (st === 1) {
+      bun.expr = 'smile'; bsay('ho1', '나도 해 줄게!', 'ok', 1.4); Bus.audio.poof();
+      bathLater(0.5, () => { bun.foamOn = false; bun2.foamOn = true; bubbleBurst(headOf(bun2).add(new V3(0, 0.55, 0)), 4); Bus.audio.chime(); });
+      bathLater(1.3, () => { bun2.expr = 'yuck'; bsay('ho2', '…….', 'emo', 1.4); });
+      bathLater(2.5, () => { bun2.expr = null; spawnHearts(2); bsay('ho1', '똑같아졌다!', 'ok', 1.5); });
+      bathLater(3.6, () => { bun.expr = null; });
+    } else {
+      shake(bun2, 0.8); bsay('ho2', '(부르르)', 'emo', 1.3);
+      bathLater(0.5, () => { bun2.foamOn = false; bubbleBurst(headOf(bun2).add(new V3(0, 0.5, 0)), 7); Bus.audio.poof(); });
+      bathLater(1.3, () => { bun.expr = 'yuck'; bsay('ho1', '아깝다~', 'bad', 1.4); });
+      bathLater(2.6, () => { bun.expr = null; });
+    }
+  }
+  /* 오리 누름: 폴짝 뛰며 한 바퀴 + 꽥 */
+  function bathDuckSqueak(){
+    const D = bathFx.duck; D.v = reduced() ? 1.2 : 2.4; D.spin = Math.PI * 2;
+    Bus.audio.drop(3); bubbleBurst(bathDuck.getWorldPosition(new V3()), 5);
+    bun.expr = 'smile'; bsay('ho1', '꽥꽥!', 'ok', 1.3);
+    bathLater(0.8, () => bsay('ho2', pickOne(['…귀엽네.', '꽥.', '이름 있어?']), 'emo', 1.5));
+    bathLater(2.2, () => { bun.expr = null; });
+  }
+  /* 물·거품·욕조 누름: 비눗방울이 뭉게뭉게 + 한마디씩 */
+  function bathWaterTap(at){
+    at.y = bath.localToWorld(new V3(0, 0.6, 0)).y;
+    Bus.audio.poof(); bubbleBurst(at, reduced() ? 4 : 9);
+    const t = BATH_WATER[bathFx.water = (bathFx.water + 1) % BATH_WATER.length];
+    bun.expr = 'smile'; bsay('ho1', t[0], 'ok', 1.6);
+    bathLater(0.7, () => { bun2.expr = 'smile'; bsay('ho2', t[1], 'emo', 1.6); });
+    bathLater(2.0, () => { bun.expr = null; bun2.expr = null; });
+  }
+  /* 욕조 안에서 누른 곳: 반응했으면 true, 아니면(방 다른 곳) false → 일어남 */
+  function bathTap(cx, cy){
+    ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(pickables, false)[0]; if (!hit) return false;
+    const u = hit.object.userData;
+    if (!(u.bunny || u.buddy || u.duck || u.use === 'bath')) return false;
+    if (bathBusy()) return true;                         /* 반응하는 중엔 기다림 */
+    bathFx.talkT = Math.max(bathFx.talkT, 8);
+    if (u.bunny) bathSplashFight();
+    else if (u.buddy) bathFoamHat();
+    else if (u.duck) bathDuckSqueak();
+    else bathWaterTap(hit.point.clone());
+    return true;
+  }
+  /* 60Hz: 줄 선 반응 실행, 물방울, 오리, 거품 모자, 오래 있으면 얼굴 빨개짐 */
+  function stepBath(h){
+    const inB = seat.where === 'bath' && seat.on && seat.k >= 1;
+    bathFx.t += h;
+    if (inB) {
+      bathFx.was = true;
+      const due = bathFx.q.filter(e => e.at <= bathFx.t);
+      bathFx.q = bathFx.q.filter(e => e.at > bathFx.t);
+      due.forEach(e => e.fn());
+      bathFx.soak += h;
+      if (!bathFx.hot && bathFx.soak > 40 && !bathBusy()) {
+        bathFx.hot = true; bathFx.talkT = Math.max(bathFx.talkT, 8);
+        bun.expr = 'yuck'; bsay('ho1', '머리가 핑~…', 'bad', 1.8);
+        bathLater(1.0, () => bsay('ho2', '얼굴 빨개. 이제 나갈까?', 'emo', 2));
+        bathLater(2.8, () => { bun.expr = null; });
+      }
+    } else if (bathFx.was && !seat.on) {                 /* 나오면 반응 취소·정리 */
+      bathFx.was = false; bathFx.q = []; bathFx.soak = 0; bathFx.hot = false; bathFx.foam = 0;
+      bun.foamOn = bun2.foamOn = false; bun.expr = bun2.expr = null;
+      ['ho1', 'ho2'].forEach(w => { if (!bubs[w].hidden && bathSaid.has(bubs[w].textContent)) hush(w); });
+    }
+    const flushK = sstep(12, 38, bathFx.soak);
+    [bun, bun2].forEach(s => {
+      s.foam = (s.foam || 0) + ((s.foamOn ? 1 : 0) - (s.foam || 0)) * Math.min(1, h * 9);
+      s.flush = inB ? Math.max(s.flush || 0, flushK) : Math.max(0, (s.flush || 0) - h * 0.25);
+    });
+    if (seat.where === 'bath') spring(bun2.squash, 0, 190, 11, h);   /* 앉아 있을 땐 HO2 출렁임을 여기서 */
+    const D = bathFx.duck;
+    if (D.v !== 0 || D.y > 0) { D.v -= 9 * h; D.y += D.v * h; if (D.y <= 0) { D.y = 0; D.v = 0; } }
+    D.spin = Math.max(0, D.spin - h * 9);
+    bathSplash.forEach(d => {
+      if (!d.alive) return;
+      d.life += h; d.vel.y -= 7 * h; d.m.position.addScaledVector(d.vel, h);
+      if (d.life > 0.75) { d.alive = false; d.m.visible = false; }
+    });
+  }
   Object.values(SEATS).forEach(S => { S.yaw0 = S.yaw.slice(); });
   function sitDown(where){
     if (seat.on || sleep.on || seat.k > 0 || Bus.mode !== 'room' || fl.active) return;
@@ -1849,6 +2000,10 @@ function boot(){
     if (moved > 7 || long || Bus.mode !== 'room' || fl.active) return;
     if (sleep.on) { wakeUp(); return; }                 /* 자는 중엔 아무 데나 누르면 깸 */
     if (cook.eat) return;                                /* 먹는 동안엔 눌러도 그대로 */
+    if (seat.on && seat.where === 'bath') {              /* 욕조: 캐릭터·오리·물을 누르면 반응, 다른 데 누르면 나옴 */
+      if (seat.k < 1 || !bathTap(e.clientX, e.clientY)) standUp();
+      return;
+    }
     if (seat.on) {                                       /* 앉아 있을 땐 아무 데나 누르면 일어남 (식탁에서 쿠키 누르면 먹음) */
       if (atTable() && seat.k >= 1 && tray && tray.kind !== 'raw' && hitsTray(e.clientX, e.clientY)) eatTray(); else standUp();
       return;
@@ -2283,6 +2438,7 @@ function boot(){
     if (!(sleep.on || sleep.k > 0 || seat.on || seat.k > 0)) stepBud(h);
     spring(fridgeDoor, fridgeDoor.target, 60, 9, h);
     stepWater(h);
+    stepBath(h);
     Object.values(sections).forEach(g => { const hv = g.userData.hover; spring(hv, hv.target, 170, 12, h); });
     drawers.forEach(d => spring(d.out, d.target, 230, 15, h));
     spring(sprout.g, sprout.target, 110, 8, h);
@@ -2540,6 +2696,7 @@ function boot(){
     get camera(){ return camera; },
     get flying(){ return fl.active; },
     jump: jumpAction,
+    bathPlay: k => ({ ho1: bathSplashFight, ho2: bathFoamHat, duck: bathDuckSqueak })[k](),
     get near(){ return nearSection(); },
     get heartsAlive(){ return hearts.filter(h => h.alive && h.m.visible).length; }
   };
@@ -2623,6 +2780,24 @@ function boot(){
       F.snack.visible = b > 0;
       if (b > 0) F.snackC.scale.setScalar([0, 0.45, 0.72, 1][b]);
     }
+    /* 목욕: 욕조에 들어가면 옷을 벗음(몸통·발 = 살색, 깃·넥타이 숨김) + 머리에 수건.
+       오래 있으면 볼이 빨개짐(s.flush 0~1), 거품 모자(s.foam 0~1) */
+    const BW = P.bathWear;
+    if (BW) {
+      const bare = seat.where === 'bath' && seat.k > 0.55;
+      if (BW.bare !== bare) {
+        BW.bare = bare;
+        BW.body.material.color.setHex(bare ? SKIN : BW.shirt);
+        BW.collar.visible = BW.tie.visible = !bare;
+        P.feet.forEach(f => f.material.color.setHex(bare ? SKIN : COL.white));
+      }
+      BW.towel.visible = bare;
+      const fh = s.foam || 0;
+      BW.foamHat.visible = fh > 0.02;
+      BW.foamHat.scale.setScalar(Math.max(0.001, fh * (1 + (still ? 0 : Math.sin(time * 3) * 0.04))));
+      const fl2 = s.flush || 0;
+      BW.cheeks.forEach(ch => { ch.material.color.setHex(BW.cheek).lerp(FLUSH_COL, fl2 * 0.8); ch.scale.set(1 + fl2 * 0.35, 0.55 + fl2 * 0.2, 0.35); });
+    }
     P.shadow.position.set(P.bunny.position.x, FLOOR + 0.035, P.bunny.position.z);
     const ss = 1 - Math.min(s.jumpY, 1.2) * 0.4; P.shadow.scale.set(ss, ss, ss);
     P.shadow.material.opacity = ss * (1 - se) * (1 - 0.6 * sk);
@@ -2668,8 +2843,9 @@ function boot(){
         f.visible = fk > 0.01; f.scale.setScalar(Math.max(0.001, fk * (1 + w)));
       });
       bathWater.position.y = 0.52 + fk * 0.04;
-      bathDuck.position.y = 0.56 + fk * 0.06 + (still ? 0 : Math.sin(time * 2.2) * 0.012);
+      bathDuck.position.y = 0.56 + fk * 0.06 + (still ? 0 : Math.sin(time * 2.2) * 0.012) + bathFx.duck.y / 1.2;
       bathDuck.rotation.z = still ? 0 : Math.sin(time * 1.6) * 0.12;
+      bathDuck.rotation.y = -0.6 + bathFx.duck.spin;
       if (inBath && seat.on && seat.k >= 1) {
         bathFx.bubT -= dt;
         if (bathFx.bubT <= 0 && !still) {
@@ -2684,17 +2860,17 @@ function boot(){
         }
         if (bathFx.talkT > 0) {
           bathFx.talkT -= dt;
-          if (bathFx.talkT <= 0) {
+          if (bathFx.talkT <= 0 && bathBusy()) bathFx.talkT = 3;   /* 반응 중이면 잠깐 미룸 */
+          else if (bathFx.talkT <= 0) {
             const t = BATH_TEXT[bathFx.talk++ % BATH_TEXT.length];
-            say('ho1', t[0], 'ok', 2);
-            setTimeout(() => { if (seat.where === 'bath' && seat.on) say('ho2', t[1], 'emo', 1.8); }, 700);
+            bsay('ho1', t[0], 'ok', 2);
+            setTimeout(() => { if (seat.where === 'bath' && seat.on) bsay('ho2', t[1], 'emo', 1.8); }, 700);
             spawnHearts(1); bathFx.talkT = 6;
           }
         }
       } else if (!(inBath && seat.on) && (bathFx.talkT !== 0 || fk > 0)) {   /* 욕조에서 나오면 말풍선 정리 */
         bathFx.talkT = 0;
-        if (!bubs.ho1.hidden && BATH_TEXT.some(t => t[0] === bubs.ho1.textContent)) hush('ho1');
-        if (!bubs.ho2.hidden && BATH_TEXT.some(t => t[1] === bubs.ho2.textContent)) hush('ho2');
+        ['ho1', 'ho2'].forEach(w => { if (!bubs[w].hidden && bathSaid.has(bubs[w].textContent)) hush(w); });
       }
       bathBubbles.forEach(b => {
         if (!b.alive) return;
