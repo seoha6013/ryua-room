@@ -65,7 +65,11 @@
   var needSit = '서버에 "상황(들렸을 때)" 칸이 아직 없어요. 안내받은 SQL(quotes_situation.sql)을 먼저 실행해 주세요.';
   function emsg(e){ var m = (e && e.message) || ''; return /situation/.test(m) ? needSit : /bubble/.test(m) ? needCol : (P.msg ? P.msg(e) : m); }
   /* 상황: 'lifted' = 들렸을 때 전용 대사 (캐릭터를 들어 올리면 나옴). 비어 있으면 평소 대사 */
-  function isLift(q){ return q.situation === 'lifted'; }
+  /* 들림 표시는 이미 있는 context(메모) 칸에 '들림'으로 저장 → 서버에 새 칸(SQL) 없이도 됨.
+     (나중에 situation 칸이 생겨 'lifted'로 들어간 줄도 같이 인식) */
+  var LIFT_MARK = '들림';
+  function isLift(q){ return q.situation === 'lifted' || q.context === LIFT_MARK; }
+  function ctxOf(q){ return q.context === LIFT_MARK ? '' : (q.context || ''); }
   /* "류스케·들림", "아키사 들림", "HO1/들림" 같은 이름 → { who, sit } */
   function whoSit(str){
     var t = String(str || '').trim(), m = t.match(/^(.+?)[\s·・.\/\-_]*들림$/);
@@ -110,7 +114,7 @@
     var q = S.q.trim().toLowerCase();
     return QUOTES.filter(function(x){
       var w = whoOf(x.speaker);
-      return (S.who === 'all' || w === S.who) && (!q || String(x.line).toLowerCase().indexOf(q) >= 0 || String(x.context || '').toLowerCase().indexOf(q) >= 0);
+      return (S.who === 'all' || w === S.who) && (!q || String(x.line).toLowerCase().indexOf(q) >= 0 || ctxOf(x).toLowerCase().indexOf(q) >= 0);
     });
   }
   function cardHTML(x){
@@ -122,7 +126,7 @@
       '<div class="qt-row"><button class="qt-go" type="submit">저장</button><button class="rc-sm" type="button" data-qcancel="1">취소</button></div></form></article>';
     return '<article class="qt-card ' + w + (on ? '' : ' off') + '" data-qid="' + x.id + '">' +
       '<span class="qt-who">' + WHO[w] + '</span>' + (isLift(x) ? '<span class="qt-sit">🙌 들렸을 때</span>' : '') + (on ? '' : '<span class="qt-off">말풍선 꺼짐</span>') +
-      '<p class="qt-line">' + esc(x.line) + '</p>' + (x.context ? '<p class="qt-ctx">' + esc(x.context) + '</p>' : '') +
+      '<p class="qt-line">' + esc(x.line) + '</p>' + (ctxOf(x) ? '<p class="qt-ctx">' + esc(ctxOf(x)) + '</p>' : '') +
       '<div class="qt-pl"><button class="rc-sm" type="button" data-qbub="' + x.id + '" aria-pressed="' + on + '">💬 말풍선에 쓰기 ' + (on ? '켜짐' : '꺼짐') + '</button>' +
       '<button class="rc-sm" type="button" data-qed="' + x.id + '">수정</button><button class="rc-sm" type="button" data-qdel="' + x.id + '">삭제</button></div></article>';
   }
@@ -189,8 +193,7 @@
   }
   function nextSort(){ return QUOTES.reduce(function(m, q){ return Math.max(m, +q.sort || 0); }, 0) + 1; }
   async function insertRows(rows){
-    var base = nextSort(), data = rows.map(function(r, i){ var d = { speaker: r.who, line: r.line, sort: base + i }; if (r.sit) d.situation = r.sit; return d; });
-    if (data.some(function(d){ return d.situation; }) && data.some(function(d){ return !d.situation; })) data.forEach(function(d){ if (!d.situation) d.situation = null; });   /* 한 번에 넣을 땐 칸을 맞춤 */
+    var base = nextSort(), data = rows.map(function(r, i){ var d = { speaker: r.who, line: r.line, sort: base + i }; if (r.sit) d.context = LIFT_MARK; return d; });   /* 한 번에 넣을 땐 칸을 맞춤 */
     for (var i = 0; i < data.length; i += 200) {
       var res = await P.sb.from('quotes').insert(data.slice(i, i + 200));
       if (res.error) throw res.error;
@@ -246,7 +249,8 @@
       var line = f.line.value.trim(); if (!line) return;
       var b = f.querySelector('button[type=submit]'); b.disabled = true;
       var up = { speaker: f.who.value, line: line }, old = QUOTES.find(function(q){ return q.id === +f.dataset.qedit; }) || {};
-      if (f.lifted.checked || 'situation' in old) up.situation = f.lifted.checked ? 'lifted' : null;
+      if (f.lifted.checked) up.context = LIFT_MARK;
+      else if (isLift(old)) { up.context = ''; if (old.situation === 'lifted') up.situation = null; }
       var r = await P.sb.from('quotes').update(up).eq('id', +f.dataset.qedit);
       b.disabled = false;
       if (r.error) { alert(emsg(r.error)); return; }
