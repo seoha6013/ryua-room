@@ -1,7 +1,8 @@
-/* 책장 = 기록장의 "명대사" 탭 (#quotes). 서버 quotes 표 (speaker 'ho1'|'ho2', line, context, sort, bubble).
-   보기는 누구나: 캐릭터별 거르기 · 검색 · 캐릭터 색 말풍선 카드.
-   PL만: txt 파일 올리기 / 붙여 넣기 / 한 줄씩 넣기(미리보기 → 저장, 똑같은 줄은 건너뜀), 수정 · 삭제 · 말풍선에 쓰기 켜기/끄기.
-   방의 혼잣말 말풍선(diorama.js)은 PUBAM_QUOTES.bubbles()로 대사를 가져감 */
+/* 책장 = 기록장의 "명대사" 탭 (#quotes). 서버 quotes 표 (speaker 'ho1'|'ho2', line, context, sort, bubble, lift).
+   bubble = 평소 말풍선(가만히 있을 때), lift = 들렸을 때 말풍선. 둘은 따로 켜고 끔 (둘 다 끄면 목록에만 남음)
+   보기는 누구나: 캐릭터별 · 평소/들렸을 때 거르기 · 검색 · 캐릭터 색 말풍선 카드 (게스트는 💬 평소 / 🙌 들림 표시만).
+   PL만: 카드마다 ☑ 평소 · ☑ 들렸을 때 (바꾸면 바로 저장), txt 파일 / 붙여 넣기 / 한 줄씩 넣기(미리보기 → 저장), 수정 · 삭제.
+   방의 말풍선(diorama.js)은 PUBAM_QUOTES.bubbles() / liftLines(who)로 대사를 가져감 */
 (function(){
   'use strict';
   var P = window.PUBAM;
@@ -50,47 +51,50 @@
     '.panel .qt-msg{min-height:1.2em;margin:8px 0 0;font-size:13px;font-weight:800;color:#2E7D32}.panel .qt-msg.err{color:#B3261E}' +
     '.qt-add{margin-left:auto}' +
     '.qt-sit{display:inline-block;margin-left:6px;font:800 11px/1 Nunito,"Gowun Dodum",sans-serif;padding:4px 8px;border-radius:999px;background:#FFE3EB;border:1px solid #E0A8BA;color:#1F1B24}' +
-    '.qt-chk{display:inline-flex;align-items:center;gap:6px;min-height:42px;font:800 13px Nunito,"Gowun Dodum",sans-serif;color:var(--ink);cursor:pointer}.qt-chk input{width:18px;height:18px}';
+    '.qt-chk{display:inline-flex;align-items:center;gap:6px;min-height:42px;font:800 13px Nunito,"Gowun Dodum",sans-serif;color:var(--ink);cursor:pointer}.qt-chk input{width:18px;height:18px;accent-color:#5565AA}' +
+    '.qt-flags{display:none;flex-wrap:wrap;gap:4px 14px;margin-top:6px}html.is-pl .qt-flags{display:flex}' +
+    '.qt-flags .qt-chk{min-height:40px;padding:0 10px;border-radius:999px;background:rgba(255,255,255,.7);border:1px solid var(--qb)}' +
+    '.qt-tags{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}html.is-pl .qt-tags{display:none}' +
+    '.qt-tag{font:800 11px/1 Nunito,"Gowun Dodum",sans-serif;padding:4px 8px;border-radius:999px;background:#fff;border:1px solid var(--qb);color:#1F1B24}' +
+    '.qt-only{display:none;margin-left:6px;font:800 11px Nunito,"Gowun Dodum",sans-serif;color:var(--ink-3)}html.is-pl .qt-card.off .qt-only{display:inline}' +
+    '.qt-pl2 li b{flex:none;font:800 11px/1 Nunito,"Gowun Dodum",sans-serif;padding:3px 7px;border-radius:999px;background:#F3F1F7;border:1px solid #D9D5E3;white-space:nowrap}' +
+    '.qt-one-chk{display:flex;flex-wrap:wrap;gap:4px 12px;width:100%}';
   document.head.appendChild(css);
 
   var QUOTES = [], loaded = false, err = '';
-  var S = { who: 'all', q: '', editing: null, mode: 'file', edOpen: false, pending: null };
+  var S = { who: 'all', sit: 'all', q: '', editing: null, mode: 'file', edOpen: false, pending: null };
   var view = null, bar = null;
   function esc(s){ return P && P.esc ? P.esc(s == null ? '' : s) : String(s); }
   function $(id){ return document.getElementById(id); }
   function whoOf(sp){ var k = String(sp || '').trim().toLowerCase().replace(/\s+/g, ''); return NAMES[k] || (k === '1' ? 'ho1' : k === '2' ? 'ho2' : null); }
   function norm(s){ return String(s || '').replace(/\s+/g, ' ').trim(); }
+  /* 두 칸: bubble = 평소 말풍선(기본 켬), lift = 들렸을 때 말풍선(기본 끔) */
   function isOn(q){ return q.bubble !== false; }
-  var needCol = '서버에 "말풍선에 쓰기" 칸이 아직 없어요. 안내받은 SQL(quotes_bubble.sql)을 먼저 실행해 주세요.';
-  var needSit = '서버에 "상황(들렸을 때)" 칸이 아직 없어요. 안내받은 SQL(quotes_situation.sql)을 먼저 실행해 주세요.';
-  function emsg(e){ var m = (e && e.message) || ''; return /situation/.test(m) ? needSit : /bubble/.test(m) ? needCol : (P.msg ? P.msg(e) : m); }
-  /* 상황: 'lifted' = 들렸을 때 전용 대사 (캐릭터를 들어 올리면 나옴). 비어 있으면 평소 대사 */
-  /* 들림 표시는 이미 있는 context(메모) 칸에 '들림'으로 저장 → 서버에 새 칸(SQL) 없이도 됨.
-     (나중에 situation 칸이 생겨 'lifted'로 들어간 줄도 같이 인식) */
-  var LIFT_MARK = '들림';
-  function isLift(q){ return q.situation === 'lifted' || q.context === LIFT_MARK; }
-  function ctxOf(q){ return q.context === LIFT_MARK ? '' : (q.context || ''); }
-  /* "류스케·들림", "아키사 들림", "HO1/들림" 같은 이름 → { who, sit } */
+  function isLift(q){ return q.lift === true; }
+  function emsg(e){ return P && P.msg ? P.msg(e) : ((e && e.message) || '저장하지 못했어요.'); }
+  function ctxOf(q){ return q.context || ''; }
+  function flagTxt(b, l){ return b && l ? '💬 평소 · 🙌 들림' : b ? '💬 평소' : l ? '🙌 들림만' : '목록에만'; }
+  /* 머리말 이름 → { who, b(평소), l(들렸을 때) }: "류스케" = 평소 / "류스케·들림" = 들렸을 때만 / "류스케·둘다" = 둘 다 */
   function whoSit(str){
-    var t = String(str || '').trim(), m = t.match(/^(.+?)[\s·・.\/\-_]*들림$/);
-    if (m && whoOf(m[1])) return { who: whoOf(m[1]), sit: 'lifted' };
-    return { who: whoOf(t), sit: null };
+    var t = String(str || '').trim(), m = t.match(/^(.+?)[\s·・.\/\-_]*(들림|둘\s*다)$/);
+    if (m && whoOf(m[1])) return /들림/.test(m[2]) ? { who: whoOf(m[1]), b: false, l: true } : { who: whoOf(m[1]), b: true, l: true };
+    return { who: whoOf(t), b: true, l: false };
   }
 
   /* ---------- 글 → 대사 나누기 ----------
      "이름: 대사" = 그 사람 / "[이름]" 줄 아래 = 다음 [이름] 전까지 이름 없이도 그 사람 / 빈 줄·#메모 무시 */
   function parse(text){
-    var cur = null, curSit = null, out = [], seen = {};
-    QUOTES.forEach(function(q){ seen[(whoOf(q.speaker) || '') + '|' + (isLift(q) ? 'lifted' : '') + '|' + norm(q.line)] = 1; });
+    var cur = null, curB = true, curL = false, out = [], seen = {};
+    QUOTES.forEach(function(q){ seen[(whoOf(q.speaker) || '') + '|' + norm(q.line)] = 1; });
     String(text || '').replace(/^﻿/, '').split(/\r\n|\r|\n/).forEach(function(raw, i){
       var l = raw.trim();
       if (!l || l.charAt(0) === '#') return;
       var sec = l.match(/^\[\s*(.+?)\s*\]$/);
-      if (sec) { var w0 = whoSit(sec[1]); if (w0.who) { cur = w0.who; curSit = w0.sit; } return; }   /* [류스케] / [류스케·들림]. 모르는 [ ]는 메모 */
-      var who = cur, sit = curSit, line = l, m = l.match(/^([^:：]{1,12}?)\s*[:：]\s*(.*)$/);
-      if (m && whoSit(m[1]).who) { var ns = whoSit(m[1]); who = ns.who; sit = ns.sit || (who === cur ? curSit : null); line = m[2].trim(); }
+      if (sec) { var w0 = whoSit(sec[1]); if (w0.who) { cur = w0.who; curB = w0.b; curL = w0.l; } return; }   /* [류스케] / [류스케·들림] / [류스케·둘다]. 모르는 [ ]는 메모 */
+      var who = cur, b = curB, lf = curL, line = l, m = l.match(/^([^:：]{1,12}?)\s*[:：]\s*(.*)$/);
+      if (m && whoSit(m[1]).who) { var ns = whoSit(m[1]); who = ns.who; b = ns.b; lf = ns.l; line = m[2].trim(); }   /* "이름: 대사" = 평소 (이름 뒤에 ·들림/·둘다가 붙으면 그대로) */
       if (!line) return;
-      var row = { who: who, sit: sit, line: line, n: i + 1 }, key = who + '|' + (sit || '') + '|' + norm(line);
+      var row = { who: who, b: b, l: lf, line: line, n: i + 1 }, key = who + '|' + norm(line);
       if (!who) row.skip = '누구 대사인지 몰라요';
       else if (seen[key]) row.skip = '이미 있어요';
       else seen[key] = 1;
@@ -114,7 +118,7 @@
     var q = S.q.trim().toLowerCase();
     return QUOTES.filter(function(x){
       var w = whoOf(x.speaker);
-      return (S.who === 'all' || w === S.who) && (!q || String(x.line).toLowerCase().indexOf(q) >= 0 || ctxOf(x).toLowerCase().indexOf(q) >= 0);
+      return (S.who === 'all' || w === S.who) && (S.sit === 'all' || (S.sit === 'bubble' ? isOn(x) : isLift(x))) && (!q || String(x.line).toLowerCase().indexOf(q) >= 0 || ctxOf(x).toLowerCase().indexOf(q) >= 0);
     });
   }
   function cardHTML(x){
@@ -122,13 +126,17 @@
     if (S.editing === x.id) return '<article class="qt-card ' + w + '" data-qid="' + x.id + '"><form class="qt-edit" data-qedit="' + x.id + '">' +
       '<label class="sr-only" for="qe-w">누구 대사</label><select class="qt-sel" id="qe-w" name="who"><option value="ho1"' + (w === 'ho1' ? ' selected' : '') + '>류스케</option><option value="ho2"' + (w === 'ho2' ? ' selected' : '') + '>아키사</option></select>' +
       '<label class="sr-only" for="qe-l">대사</label><textarea id="qe-l" name="line" rows="3" required>' + esc(x.line) + '</textarea>' +
-      '<label class="qt-chk"><input type="checkbox" name="lifted"' + (isLift(x) ? ' checked' : '') + '> 🙌 들렸을 때 대사</label>' +
       '<div class="qt-row"><button class="qt-go" type="submit">저장</button><button class="rc-sm" type="button" data-qcancel="1">취소</button></div></form></article>';
-    return '<article class="qt-card ' + w + (on ? '' : ' off') + '" data-qid="' + x.id + '">' +
-      '<span class="qt-who">' + WHO[w] + '</span>' + (isLift(x) ? '<span class="qt-sit">🙌 들렸을 때</span>' : '') + (on ? '' : '<span class="qt-off">말풍선 꺼짐</span>') +
+    var lf = isLift(x);
+    return '<article class="qt-card ' + w + (on || lf ? '' : ' off') + '" data-qid="' + x.id + '">' +
+      '<span class="qt-who">' + WHO[w] + '</span>' +
+      '<span class="qt-tags">' + (on ? '<span class="qt-tag">💬 평소</span>' : '') + (lf ? '<span class="qt-tag">🙌 들림</span>' : '') + '</span>' +
+      '<span class="qt-only">말풍선에 안 나옴 (목록에만)</span>' +
       '<p class="qt-line">' + esc(x.line) + '</p>' + (ctxOf(x) ? '<p class="qt-ctx">' + esc(ctxOf(x)) + '</p>' : '') +
-      '<div class="qt-pl"><button class="rc-sm" type="button" data-qbub="' + x.id + '" aria-pressed="' + on + '">💬 말풍선에 쓰기 ' + (on ? '켜짐' : '꺼짐') + '</button>' +
-      '<button class="rc-sm" type="button" data-qed="' + x.id + '">수정</button><button class="rc-sm" type="button" data-qdel="' + x.id + '">삭제</button></div></article>';
+      '<div class="qt-flags" role="group" aria-label="말풍선에 쓰기">' +
+        '<label class="qt-chk"><input type="checkbox" data-qflag="bubble" data-qid="' + x.id + '"' + (on ? ' checked' : '') + '> 💬 평소</label>' +
+        '<label class="qt-chk"><input type="checkbox" data-qflag="lift" data-qid="' + x.id + '"' + (lf ? ' checked' : '') + '> 🙌 들렸을 때</label></div>' +
+      '<div class="qt-pl"><button class="rc-sm" type="button" data-qed="' + x.id + '">수정</button><button class="rc-sm" type="button" data-qdel="' + x.id + '">삭제</button></div></article>';
   }
   function drawList(){
     var el = $('qtList'); if (!el) return;
@@ -143,11 +151,13 @@
     bar.innerHTML = '<div class="qt-tools">' +
       '<span class="rc-seg" role="group" aria-label="캐릭터 거르기">' + [['all', '전체'], ['ho1', '류스케'], ['ho2', '아키사']].map(function(o){
         return '<button type="button" data-qwho="' + o[0] + '" aria-pressed="' + (S.who === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</span>' +
+      '<span class="rc-seg" role="group" aria-label="말풍선 거르기">' + [['all', '전체'], ['bubble', '💬 평소'], ['lift', '🙌 들렸을 때']].map(function(o){
+        return '<button type="button" data-qsit="' + o[0] + '" aria-pressed="' + (S.sit === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</span>' +
       '<label class="sr-only" for="qtQ">대사 검색</label><input class="qt-search" id="qtQ" type="search" placeholder="대사 검색" value="' + esc(S.q) + '" autocomplete="off">' +
       '<span class="qt-count" id="qtCount" aria-live="polite"></span>' +
       '<button type="button" class="rc-sm rc-up qt-add" data-qopen="1" aria-expanded="' + S.edOpen + '">＋ 대사 넣기</button></div>';
   }
-  var FORMAT = '류스케: 봤지! 나니깐!\n아키사: …뭐야.\n[류스케]\n이 줄부터는 이름 없이 써도 류스케 대사\n[아키사]\n여기부터는 아키사 대사\n[류스케·들림]\n들어 올렸을 때만 나오는 류스케 대사\n[아키사·들림]\n들어 올렸을 때만 나오는 아키사 대사\n# 샵(#)으로 시작하는 줄은 메모라 안 들어가요';
+  var FORMAT = '[류스케]\n평소 대사 (가만히 있을 때)\n[류스케·들림]\n들어 올렸을 때만 나오는 대사\n[류스케·둘다]\n두 경우 다 나오는 대사\n[아키사]\n[아키사·들림]\n[아키사·둘다]\n(아키사도 똑같이)\n류스케: 이름: 대사 형식 줄은 평소 대사\n# 샵(#)으로 시작하는 줄은 메모라 안 들어가요';
   function edHTML(){
     var m = S.mode;
     return '<div class="qt-ed' + (S.edOpen ? ' open' : '') + '" id="qtEd">' +
@@ -157,19 +167,21 @@
        m === 'paste' ? '<label class="sr-only" for="qtPaste">대사 붙여 넣기</label><textarea id="qtPaste" rows="8" placeholder="' + esc(FORMAT) + '"></textarea><div class="qt-row" style="margin-top:8px"><button class="qt-go" type="button" data-qprev="1">미리보기</button></div>' :
        '<form class="qt-row" id="qtOne"><label class="sr-only" for="qtOneW">누구 대사</label><select class="qt-sel" id="qtOneW"><option value="ho1">류스케</option><option value="ho2">아키사</option></select>' +
          '<label class="sr-only" for="qtOneL">대사</label><input id="qtOneL" placeholder="대사 한 줄" maxlength="500" required>' +
-         '<label class="qt-chk"><input type="checkbox" id="qtOneLift"> 🙌 들렸을 때</label><button class="qt-go" type="submit">추가</button></form>') +
-      (m !== 'one' ? '<details class="qt-help"><summary>쓰는 형식 보기</summary><pre>' + esc(FORMAT) + '</pre><p>이름은 류스케·아키사(또는 HO1·HO2). 빈 줄은 무시하고, 이미 있는 똑같은 대사는 건너뛰어요.</p></details>' : '') +
+         '<span class="qt-one-chk"><label class="qt-chk"><input type="checkbox" id="qtOneBub" checked> 💬 평소</label><label class="qt-chk"><input type="checkbox" id="qtOneLift"> 🙌 들렸을 때</label></span>' +
+         '<button class="qt-go" type="submit">추가</button></form>') +
+      (m !== 'one' ? '<details class="qt-help"><summary>쓰는 형식 보기</summary><pre>' + esc(FORMAT) + '</pre><p>이름은 류스케·아키사(또는 HO1·HO2). 머리말 [이름] = 평소, [이름·들림] = 들렸을 때만, [이름·둘다] = 둘 다. 빈 줄은 무시하고, 이미 있는 똑같은 대사는 건너뛰어요.</p></details>' : '') +
       '<div id="qtPrev"></div><p class="qt-msg" id="qtMsg" role="status"></p></div>';
   }
   function drawPrev(){
     var el = $('qtPrev'); if (!el) return;
     var rows = S.pending; if (!rows) { el.innerHTML = ''; return; }
-    var ok = rows.filter(function(r){ return !r.skip; }), a = ok.filter(function(r){ return r.who === 'ho1'; }).length, lf = ok.filter(function(r){ return r.sit; }).length;
+    var ok = rows.filter(function(r){ return !r.skip; }), a = ok.filter(function(r){ return r.who === 'ho1'; }).length;
+    var nb = ok.filter(function(r){ return r.b; }).length, nl = ok.filter(function(r){ return r.l; }).length;
     var dup = rows.filter(function(r){ return r.skip === '이미 있어요'; }).length, unk = rows.filter(function(r){ return r.skip && r.skip !== '이미 있어요'; }).length;
     el.innerHTML = '<div class="qt-prev"><p><b>새로 넣을 대사 ' + ok.length + '줄</b> — 류스케 ' + a + '줄 · 아키사 ' + (ok.length - a) + '줄' +
-      (lf ? ' (그중 들렸을 때 ' + lf + '줄)' : '') + (dup ? ' · 이미 있어서 건너뜀 ' + dup + '줄' : '') + (unk ? ' · 누구 대사인지 몰라 건너뜀 ' + unk + '줄' : '') + '</p>' +
+      ' (💬 평소 ' + nb + '줄 · 🙌 들렸을 때 ' + nl + '줄)' + (dup ? ' · 이미 있어서 건너뜀 ' + dup + '줄' : '') + (unk ? ' · 누구 대사인지 몰라 건너뜀 ' + unk + '줄' : '') + '</p>' +
       '<ul class="qt-pl2">' + rows.map(function(r){
-        return '<li' + (r.skip ? ' class="skip" title="' + esc(r.skip) + '"' : '') + '><i class="' + (r.who || 'no') + '">' + (r.who ? WHO[r.who] + (r.sit ? '·들림' : '') : '?') + '</i><span>' + esc(r.line) + (r.skip ? ' <small>(' + esc(r.skip) + ')</small>' : '') + '</span></li>';
+        return '<li' + (r.skip ? ' class="skip" title="' + esc(r.skip) + '"' : '') + '><i class="' + (r.who || 'no') + '">' + (r.who ? WHO[r.who] : '?') + '</i>' + (r.who ? '<b>' + flagTxt(r.b, r.l) + '</b>' : '') + '<span>' + esc(r.line) + (r.skip ? ' <small>(' + esc(r.skip) + ')</small>' : '') + '</span></li>';
       }).join('') + '</ul>' +
       '<div class="qt-row"><button class="qt-go" type="button" data-qsave="1"' + (ok.length ? '' : ' disabled') + '>저장 (' + ok.length + '줄)</button><button class="rc-sm" type="button" data-qdrop="1">취소</button></div></div>';
   }
@@ -193,7 +205,7 @@
   }
   function nextSort(){ return QUOTES.reduce(function(m, q){ return Math.max(m, +q.sort || 0); }, 0) + 1; }
   async function insertRows(rows){
-    var base = nextSort(), data = rows.map(function(r, i){ var d = { speaker: r.who, line: r.line, sort: base + i }; if (r.sit) d.context = LIFT_MARK; return d; });   /* 한 번에 넣을 땐 칸을 맞춤 */
+    var base = nextSort(), data = rows.map(function(r, i){ return { speaker: r.who, line: r.line, sort: base + i, bubble: !!r.b, lift: !!r.l }; });
     for (var i = 0; i < data.length; i += 200) {
       var res = await P.sb.from('quotes').insert(data.slice(i, i + 200));
       if (res.error) throw res.error;
@@ -205,6 +217,7 @@
   document.addEventListener('click', async function(e){
     var t = e.target; if (!inQt(t)) return;
     var w = t.closest('[data-qwho]'); if (w) { S.who = w.dataset.qwho; drawBar(); drawList(); return; }
+    var st = t.closest('[data-qsit]'); if (st) { S.sit = st.dataset.qsit; drawBar(); drawList(); return; }
     if (t.closest('[data-qopen]')) { S.edOpen = !S.edOpen; t.closest('[data-qopen]').setAttribute('aria-expanded', S.edOpen); $('qtEd').classList.toggle('open', S.edOpen); return; }
     var md = t.closest('[data-qmode]'); if (md) { S.mode = md.dataset.qmode; S.pending = null; redrawEd(); return; }
     if (t.closest('[data-qprev]')) { S.pending = parse($('qtPaste').value); msg(S.pending.length ? '' : '넣을 대사가 없어요.', !S.pending.length); drawPrev(); return; }
@@ -215,16 +228,6 @@
       sv.disabled = true; msg('저장하는 중…');
       try { await insertRows(ok); S.pending = null; drawPrev(); var pa = $('qtPaste'); if (pa) pa.value = ''; await load(); msg(ok.length + '줄 넣었어요.'); }
       catch (x) { sv.disabled = false; msg(emsg(x), true); }
-      return;
-    }
-    var bb = t.closest('[data-qbub]');
-    if (bb) {
-      var q = QUOTES.find(function(x){ return x.id === +bb.dataset.qbub; }); if (!q) return;
-      bb.disabled = true;
-      var r = await P.sb.from('quotes').update({ bubble: !isOn(q) }).eq('id', q.id);
-      bb.disabled = false;
-      if (r.error) { alert(emsg(r.error)); return; }
-      q.bubble = !isOn(q); drawList(); document.dispatchEvent(new CustomEvent('pubam-quotes'));
       return;
     }
     var ed = t.closest('[data-qed]'); if (ed) { S.editing = +ed.dataset.qed; drawList(); var ta = $('qe-l'); if (ta) ta.focus(); return; }
@@ -238,6 +241,20 @@
       load();
     }
   });
+  /* 카드의 ☑ 평소 / ☑ 들렸을 때: 바꾸면 바로 저장 (안 되면 되돌림) */
+  document.addEventListener('change', async function(e){
+    var c = e.target; if (!c.dataset || !c.dataset.qflag || !inQt(c)) return;
+    var q = QUOTES.find(function(x){ return x.id === +c.dataset.qid; }); if (!q) return;
+    var k = c.dataset.qflag, v = c.checked, up = {}; up[k] = v;
+    c.disabled = true;
+    var r = await P.sb.from('quotes').update(up).eq('id', q.id);
+    c.disabled = false;
+    if (r.error) { c.checked = !v; alert(emsg(r.error)); return; }
+    q[k] = v;
+    var card = c.closest('.qt-card'); if (card) card.classList.toggle('off', !isOn(q) && !isLift(q));
+    if (S.sit !== 'all') drawList();
+    document.dispatchEvent(new CustomEvent('pubam-quotes'));
+  });
   document.addEventListener('input', function(e){
     if (e.target.id !== 'qtQ') return;
     S.q = e.target.value; drawList();
@@ -248,9 +265,7 @@
       e.preventDefault();
       var line = f.line.value.trim(); if (!line) return;
       var b = f.querySelector('button[type=submit]'); b.disabled = true;
-      var up = { speaker: f.who.value, line: line }, old = QUOTES.find(function(q){ return q.id === +f.dataset.qedit; }) || {};
-      if (f.lifted.checked) up.context = LIFT_MARK;
-      else if (isLift(old)) { up.context = ''; if (old.situation === 'lifted') up.situation = null; }
+      var up = { speaker: f.who.value, line: line };
       var r = await P.sb.from('quotes').update(up).eq('id', +f.dataset.qedit);
       b.disabled = false;
       if (r.error) { alert(emsg(r.error)); return; }
@@ -259,11 +274,11 @@
     }
     if (f.id === 'qtOne') {
       e.preventDefault();
-      var who = $('qtOneW').value, l = $('qtOneL').value.trim(), lifted = $('qtOneLift').checked; if (!l) return;
-      var dup = QUOTES.some(function(q){ return whoOf(q.speaker) === who && isLift(q) === lifted && norm(q.line) === norm(l); });
+      var who = $('qtOneW').value, l = $('qtOneL').value.trim(), ob = $('qtOneBub').checked, lifted = $('qtOneLift').checked; if (!l) return;
+      var dup = QUOTES.some(function(q){ return whoOf(q.speaker) === who && norm(q.line) === norm(l); });
       if (dup) { msg('이미 있는 대사예요.', true); return; }
       var bt = f.querySelector('button'); bt.disabled = true;
-      try { await insertRows([{ who: who, sit: lifted ? 'lifted' : null, line: l }]); $('qtOneL').value = ''; await load(); msg(WHO[who] + (lifted ? ' 들렸을 때' : '') + ' 대사를 넣었어요.'); $('qtOneL').focus(); }
+      try { await insertRows([{ who: who, b: ob, l: lifted, line: l }]); $('qtOneL').value = ''; await load(); msg(WHO[who] + ' 대사를 넣었어요 (' + flagTxt(ob, lifted) + ').'); $('qtOneL').focus(); }
       catch (x) { msg(emsg(x), true); }
       bt.disabled = false;
     }
@@ -284,13 +299,11 @@
 
   window.PUBAM_QUOTES = {
     mount: mount,
-    /* 혼잣말 말풍선용: 말풍선에 쓰기가 켜진 대사만 */
-    bubbles: function(){ return QUOTES.filter(function(q){ return isOn(q) && !isLift(q) && whoOf(q.speaker) && norm(q.line); }).map(function(q){ return { id: q.id, who: whoOf(q.speaker), line: norm(q.line) }; }); },
-    /* 들어 올렸을 때: 그 캐릭터의 들림 전용 대사 → 없으면 평소 대사 (말풍선에 쓰기가 켜진 것만) */
+    /* 가만히 있을 때(혼잣말 말풍선): bubble = true 대사 */
+    bubbles: function(){ return QUOTES.filter(function(q){ return isOn(q) && whoOf(q.speaker) && norm(q.line); }).map(function(q){ return { id: q.id, who: whoOf(q.speaker), line: norm(q.line) }; }); },
+    /* 들렸을 때: 그 캐릭터의 lift = true 대사 (없으면 빈 목록 → diorama.js가 "!!") */
     liftLines: function(who){
-      var mine = QUOTES.filter(function(q){ return isOn(q) && whoOf(q.speaker) === who && norm(q.line); });
-      var l = mine.filter(isLift); if (!l.length) l = mine;
-      return l.map(function(q){ return { id: q.id, who: who, line: norm(q.line) }; });
+      return QUOTES.filter(function(q){ return isLift(q) && whoOf(q.speaker) === who && norm(q.line); }).map(function(q){ return { id: q.id, who: who, line: norm(q.line) }; });
     },
     parse: parse
   };

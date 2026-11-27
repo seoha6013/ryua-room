@@ -2845,15 +2845,14 @@ function boot(){
     else if (lift.onSofa) { seat.where = 'sofa'; seat.on = true; Bus.audio.hop(); }   /* 소파 위 = 앉기 */
   }
   /* 들림 대사: 들림 전용 → 없으면 그 캐릭터 평소 명대사 → 하나도 없으면 짧은 기호. 같은 것 연달아 X. 💬 꺼 두면 안 뜸 */
-  function liftSay(){
-    if (!mono.on) return;
+  function liftSay(){                                  /* 💬 버튼은 평소 말풍선만 끔 → 들렸을 때 대사는 계속 보임 */
     const who = lift.who, Q = window.PUBAM_QUOTES, list = Q && Q.liftLines ? Q.liftLines(who) : [];
     let text;
     if (list.length) {
       const pool = list.length > 1 ? list.filter(q => q.id !== lift.last) : list, q = pool[Math.floor(Math.random() * pool.length)];
       lift.last = q.id; text = q.line;
     } else {
-      const sy = ['!!', '!?', '…!!'].filter(x => x !== lift.last); text = sy[Math.floor(Math.random() * sy.length)]; lift.last = text;
+      text = '!!'; lift.last = text;                     /* 들렸을 때 대사가 하나도 없으면 "!!"만 */
     }
     say(who, text, who === 'ho1' ? 'ok' : '', 1.9);
   }
