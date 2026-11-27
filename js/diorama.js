@@ -1145,6 +1145,63 @@ function boot(){
     bun.target = null; bun.moving = false; bun.idle = 0; bun2.idle = 0; bun2.moving = false;
     Bus.audio.hop();
   }
+
+  /* 침대 이스터에그: 1.2초 안에 침대를 3번 누르면 → 방이 밤으로 어두워지고(무드등만), 둘이 침대로 폴짝 올라가
+     이불 속에서 꼭 붙어 콩닥콩닥 흔들림 + 하트가 계속 떠오름. 약 5초 뒤 / 아무 데나 누르면 / 메뉴·가구 배치 열면 원래대로.
+     한 번만 누르면(1.2초 기다렸다가) 예전처럼 잠자기. 첫 누름엔 침대가 바로 살짝 출렁 */
+  const egg = { on: false, k: 0, t: 0, heartT: 0, taps: [], timer: null };
+  const bedJig = { x: 0, v: 0 };
+  const NIGHT_BG = new THREE.Color(0x2B2F55), DAY_BG = new THREE.Color(0xffffff);
+  const eggBlocked = () => Bus.mode !== 'room' || fl.active || edit.on || cook.on || cook.eat || lift.on || lift.fall || act || seat.on || seat.k > 0 || water.on;
+  function bedTap(){
+    if (eggBlocked() || sleep.on) return;
+    bedJig.v += reduced() ? 3 : 6;                      /* 첫 누름부터 바로 출렁 */
+    const now = performance.now();
+    egg.taps = egg.taps.filter(t => now - t < 1200); egg.taps.push(now);
+    if (egg.taps.length >= 3) {
+      clearTimeout(egg.timer); egg.timer = null; egg.taps = [];
+      startEgg(); return;
+    }
+    if (!egg.timer) egg.timer = setTimeout(() => {    /* 1.2초 동안 3번이 안 되면 = 평소 잠자기 */
+      egg.timer = null; egg.taps = [];
+      if (!eggBlocked() && !egg.on && egg.k === 0) goSleep();
+    }, 1200);
+  }
+  function startEgg(){
+    if (egg.on || eggBlocked()) return;
+    closeActMenu(); cookMenu.hidden = true; keys.clear();
+    walkTo(BED_SIDE[0].x, BED_SIDE[0].z, Math.PI / 2 + bedYaw, () => { if (!eggBlocked()) { egg.on = true; egg.t = 0; egg.heartT = 0.3; } });
+  }
+  function endEgg(){
+    if (!egg.on) return;
+    egg.on = false;
+    bun.pos.copy(BED_SIDE[0]); bun2.pos.copy(BED_SIDE[1]);   /* 침대 옆 바닥으로 폴짝 내려옴 */
+    bun.target = null; bun.moving = false; bun.idle = 0; bun2.idle = 0; bun2.moving = false;
+  }
+  function stepEgg(h){
+    spring(bedJig, 0, 160, 7, h);
+    egg.k = clamp(egg.k + (egg.on ? h : -h) / 0.9, 0, 1);
+    if (!egg.on) return;
+    if (Bus.mode !== 'room' || edit.on || fl.active) { endEgg(); return; }
+    egg.t += h;
+    if (egg.k >= 1) {
+      egg.heartT -= h;
+      if (egg.heartT <= 0) { egg.heartT = reduced() ? 0.8 : 0.42; spawnHearts(1, Math.random() < 0.5 ? 'ho2' : undefined); }
+    }
+    if (egg.t > 5.6) endEgg();
+  }
+  /* 둘의 자리: 침대 가운데, 아키사(HO2) 아래(등을 대고), 류스케(HO1) 위(엎드려) — 이불 밖으론 머리만 */
+  function poseEgg(P, s, ek, still){
+    const top = s === bun, yaw = bedYaw, c = bed.localToWorld(new V3(0, 0, 0.85));
+    const beat = still ? 0 : Math.sin(time * 6.5);
+    const y = 0.98 + (top ? 0.36 + 0.035 * beat : 0.01 * beat);
+    const fwd = top ? -0.12 : 0;                        /* 위쪽 사람 머리를 조금 더 베개 쪽으로 */
+    const tx = c.x + Math.sin(yaw) * fwd, tz = c.z + Math.cos(yaw) * fwd;
+    const arc = Math.sin(Math.PI * ek) * 0.7;
+    P.bunny.position.set(mix(s.pos.x, tx, ek), mix(FLOOR + 0.02, y, ek) + arc, mix(s.pos.z, tz, ek));
+    const rx = top ? Math.PI / 2 : -Math.PI / 2, ry = top ? yaw + Math.PI : yaw;
+    P.bunny.rotation.set(rx * ek, s.face + wrapA(ry - s.face) * ek, (still ? 0 : Math.sin(time * 6.5 + (top ? 0 : 1.2)) * 0.05) * ek);
+  }
   /* 앉기: 소파(나란히) · 식탁(마주 봄). 잠자기와 같은 방식: k = 0(서 있음) ~ 1(앉음)
      자리 좌표는 가구 기준으로 만들어 두고, 가구를 옮기면 같이 따라감(아래 movable) */
   const seat = { on: false, k: 0, where: null };
@@ -1788,7 +1845,7 @@ function boot(){
   const AUTO = { at: 60 + Math.random() * 60 };        /* 이 시각(time)이 지나면 알아서 하나 */
   const autoWait = () => 60 + Math.random() * 60;
   function canInteract(){
-    return Bus.mode === 'room' && !fl.active && !edit.on && !lift.on && !lift.fall && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
+    return Bus.mode === 'room' && !fl.active && !edit.on && !lift.on && !lift.fall && !egg.on && egg.k === 0 && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
       && !cook.on && !cook.eat && !water.on;
   }
   /* 두 사람이 설 자리: 가구에 걸리면 방 가운데 쪽으로 조금씩 옮겨 봄 */
@@ -2078,7 +2135,7 @@ function boot(){
   function monoBlocked(){
     return !mono.on || Bus.mode !== 'room' || fl.active || edit.on || sleep.on || sleep.k > 0 || cook.on || cook.eat || act
       || !actMenu.hidden || !cookMenu.hidden || water.on || seat.where === 'bath' || bun.moving || bun2.moving
-      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden || lift.on || lift.fall || lift.pend;
+      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden || lift.on || lift.fall || lift.pend || egg.on || egg.k > 0;
   }
   /* 60Hz */
   function stepMono(h){
@@ -2170,6 +2227,7 @@ function boot(){
   }
   function jumpAction(){
     if (lift.on || lift.fall) return;
+    if (egg.on || egg.k > 0) { endEgg(); return; }
     if (sleep.on) { wakeUp(); return; }
     if (cook.eat) return;
     if (seat.on) { standUp(); return; }
@@ -2390,6 +2448,7 @@ function boot(){
     if (hadMenu || !actMenu.hidden) { closeActMenu(); return; }   /* 선택지 바깥을 누르면 닫히기만 함 */
     if (act) endAct();                                   /* 동작 중에 누르면 멈추고 원래대로 */
     if (sleep.on) { wakeUp(); return; }                 /* 자는 중엔 아무 데나 누르면 깸 */
+    if (egg.on || egg.k > 0) { endEgg(); return; }      /* 이스터에그 중엔 아무 데나 누르면 원래대로 */
     if (cook.eat) return;                                /* 먹는 동안엔 눌러도 그대로 */
     if (seat.on && seat.where === 'bath') {              /* 욕조: 캐릭터·오리·물을 누르면 반응, 다른 데 누르면 나옴 */
       if (seat.k < 1 || !bathTap(e.clientX, e.clientY)) standUp();
@@ -2407,7 +2466,7 @@ function boot(){
     if (h.type === 'section') { kick(h.id); if (h.tab && window.PUBAM_RECORDS) window.PUBAM_RECORDS.setTab(h.tab); Bus.open(h.id); }
     else if (h.type === 'bunny') openActMenu('ho1');   /* 캐릭터 = 둘이 함께 하기 선택지 (점프는 스페이스) */
     else if (h.type === 'buddy') openActMenu('ho2');
-    else if (h.type === 'bed') goSleep();
+    else if (h.type === 'bed') bedTap();               /* 한 번 = 잠자기(1.2초 뒤), 1.2초 안에 3번 = 이스터에그 */
     else if (h.type === 'sofa' || h.type === 'table' || h.type === 'bath') sitDown(h.type);
     else if (h.type === 'fridge') toggleFridge();
     else if (h.type === 'plant') { sprout.g.v += 1.5; goWater(); }
@@ -2436,7 +2495,7 @@ function boot(){
   const liftOf = s => (lift.on || lift.fall) && lift.s === s;   /* 이 캐릭터가 들렸거나 떨어지는 중 */
   function canLift(){
     return Bus.mode === 'room' && !fl.active && !edit.on && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
-      && !cook.on && !cook.eat && !act && !water.on && !lift.on && !lift.fall;
+      && !cook.on && !cook.eat && !act && !water.on && !lift.on && !lift.fall && !egg.on && egg.k === 0;
   }
   /* 어지러운 별 3개 (높이 떨어뜨렸을 때 머리 위에서 빙글빙글) */
   const dizzy = { t: 0, s: null, P: null, stars: [] };
@@ -2844,6 +2903,7 @@ function boot(){
   }
   function paintSel(hex){ if (!edit.sel) return; setPaint(edit.sel, palPart, hex); drawPal(); }
   function setEdit(on){
+    if (on) endEgg();
     if (on && sleep.on) wakeUp();
     if (on && seat.on) standUp();
     if (on) { cancelCook(); closeActMenu(); endAct(); }                                 /* 가구 배치 편집을 열면 요리 취소 */
@@ -2946,7 +3006,7 @@ function boot(){
   }
 
   function step(h, t){
-    const asleep = sleep.on || sleep.k > 0 || seat.on || seat.k > 0 || water.on || liftOf(bun);   /* 자거나 앉아 있거나 물 주는 중·들린 동안엔 안 걸음 */
+    const asleep = sleep.on || sleep.k > 0 || seat.on || seat.k > 0 || water.on || liftOf(bun) || egg.on || egg.k > 0;   /* 자거나 앉아 있거나 물 주는 중·들린 동안엔 안 걸음 */
     seat.k = clamp(seat.k + (seat.on ? h : -h) / 0.6, 0, 1);
     if (seat.k === 0 && !seat.on) seat.where = seat.where && null;
     sleep.k = clamp(sleep.k + (sleep.on ? h : -h) / 0.8, 0, 1);
@@ -3009,13 +3069,14 @@ function boot(){
     }
     spring(bun.squash, 0, 190, 11, h);
     spring(bun.ear, -0.38 * bun.gait + clamp(-bun.jumpV * 0.09, -0.5, 0.5), 95, 6.5, h);
-    if (!(sleep.on || sleep.k > 0 || seat.on || seat.k > 0) && !liftOf(bun2)) stepBud(h);
+    if (!(sleep.on || sleep.k > 0 || seat.on || seat.k > 0 || egg.on || egg.k > 0) && !liftOf(bun2)) stepBud(h);
     spring(fridgeDoor, fridgeDoor.target, 60, 9, h);
     stepWater(h);
     stepBath(h);
     stepAct(h);
     stepMono(h);
     stepLift(h);
+    stepEgg(h);
     Object.values(sections).forEach(g => { const hv = g.userData.hover; spring(hv, hv.target, 170, 12, h); });
     drawers.forEach(d => spring(d.out, d.target, 230, 15, h));
     spring(sprout.g, sprout.target, 110, 8, h);
@@ -3222,6 +3283,7 @@ function boot(){
   /* ---------- Engine API for the UI layer ---------- */
   const engine = {
     focus(id, onReveal){
+      endEgg();
       if (sleep.on) wakeUp();
       cancelCook(); closeActMenu(); endAct();             /* 메뉴를 열면 요리·상호작용 취소 */
       focusId = id;
@@ -3243,7 +3305,8 @@ function boot(){
     sit: sitDown, stand: standUp, water: goWater, fridge: toggleFridge, replant, butterfly: flyButterfly,
     bake: startCook, cookMenu: openCookMenu, eatTray, cancelCook,
     get cookState(){ return { on: cook.on, ready: cook.ready, t: +cook.t.toFixed(2), result: cook.result, eat: !!cook.eat, faces: [bun.expr || '-', bun.bite || 0, bun2.expr || '-', bun2.bite || 0].join(','), tray: tray ? tray.kind + ':' + tray.cookies.filter(c => c.visible).length : null }; },
-    get state(){ return { seat: Object.assign({}, seat), sleep: +sleep.k.toFixed(2), water: water.on, sprout: sprout.stage, fridge: fridgeDoor.target, bun: [bun.pos.x, bun.pos.z, bun.moving], bun2: [bun2.pos.x, bun2.pos.z] }; },
+    egg(){ startEgg(); }, bedTap(){ bedTap(); },
+    get state(){ return { seat: Object.assign({}, seat), sleep: +sleep.k.toFixed(2), egg: +egg.k.toFixed(2), eggOn: egg.on, water: water.on, sprout: sprout.stage, fridge: fridgeDoor.target, bun: [bun.pos.x, bun.pos.z, bun.moving], bun2: [bun2.pos.x, bun2.pos.z] }; },
     rippleMove(i, u, v){ if (rippleU.uTime.value - lastRipple > 0.55) startRipple(u, v, 0.08); },
     drawer(i, on){ if (drawers[i]) { drawers[i].target = on ? 0.62 : 0; if (on) drawers[i].out.v += 1.5; } },
     grow(stage){
@@ -3318,7 +3381,9 @@ function boot(){
   function poseBunny(P, s, dt, still){
     let eatHand = null;
     const se = ease(sleep.k), sk = seat.where ? ease(seat.k) : 0, lifted = liftOf(s);
+    const egk = ease(egg.k);
     if (lifted) poseLifted(P, s, still);                /* 들어 올려짐 */
+    else if (egk > 0) poseEgg(P, s, egk, still);        /* 침대 이스터에그 */
     else if (se > 0 && s.bedSlot) {
       /* 침대로 폴짝 올라가 등을 대고 누움 (머리는 헤드보드 쪽) */
       const arc = Math.sin(Math.PI * se) * 0.7;
@@ -3508,14 +3573,18 @@ function boot(){
 
     /* 잠자기 연출: 이불 덮기, 방 어둡게, Zzz */
     {
-      const n = ease(sleep.k);
-      blanket.position.set(0, mix(0.67, 1.05, n), mix(0.85, 0.5, n));
-      blanket.scale.set(1, mix(0.2, 1, n), mix(0.36, 0.95, n));
-      hemi.intensity = 1.4 * (1 - 0.55 * n);
-      key.intensity = 1.35 * (1 - 0.6 * n);
-      fill.intensity = 0.55 * (1 - 0.3 * n);
+      const ne = ease(egg.k), n = Math.max(ease(sleep.k), ne);
+      const pulse = ne * (still ? 0 : Math.max(0, Math.sin(time * 6.5))) * 0.06;   /* 이스터에그: 이불이 함께 콩닥 */
+      blanket.position.set(0, mix(0.67, 1.05, n) + 0.22 * ne, mix(0.85, 0.5, n));
+      blanket.scale.set(1 + pulse * 0.3, mix(0.2, 1, n) + 0.35 * ne + pulse, mix(0.36, 0.95, n));
+      { const j = clamp(bedJig.x, -1, 1); bed.scale.set(1 + j * 0.012, 1 - j * 0.03, 1 + j * 0.012); }   /* 누르면 침대 출렁 */
+      scene.background.copy(DAY_BG).lerp(NIGHT_BG, ne);   /* 밤 */
+      renderer.setClearColor(scene.background, 1);
+      hemi.intensity = 1.4 * (1 - 0.55 * n - 0.15 * ne);
+      key.intensity = 1.35 * (1 - 0.6 * n - 0.2 * ne);
+      fill.intensity = 0.55 * (1 - 0.3 * n - 0.3 * ne);
       bedLamp.intensity = 2.2 * n;
-      lampLight.intensity = 0.6 + 1.4 * n;
+      lampLight.intensity = Math.max(0.15, 0.6 + 1.4 * ease(sleep.k) - 0.45 * ne);   /* 이스터에그 땐 스탠드도 낮추고 침대 무드등만 */
       lampShade.material.emissiveIntensity = 0.35 + 0.5 * n;
       renderer.toneMappingExposure = 1.05 * (1 - 0.2 * n);
       if (sleep.on && sleep.k >= 1) {
