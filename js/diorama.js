@@ -503,21 +503,36 @@ function boot(){
     put(rbox(0.135, 0.05, 0.135, 0.012, 0x9FD8FF), 0.2, 0.53, -0.05, g);
     put(rbox(0.06, 0.03, 0.01, 0.004, 0x5565AA), 0.2, 0.43, 0.018, g);
     /* 가운데 칸: 와인 · 맥주 */
-    const wine = new THREE.Group(); wine.position.set(-0.2, 0.61, -0.04); g.add(wine);
+    const wine = new THREE.Group(); wine.position.set(-0.23, 0.61, -0.14); g.add(wine);   /* 와인은 왼쪽 안쪽 (맥주와 헷갈리지 않게) */
     put(cyl(0.048, 0.048, 0.22, 0x2F5D3A, { roughness: 0.3 }, 16), 0, 0.11, 0, wine);
     put(cyl(0.018, 0.04, 0.06, 0x2F5D3A, { roughness: 0.3 }, 12), 0, 0.25, 0, wine);
     put(cyl(0.019, 0.019, 0.06, 0x2F5D3A, { roughness: 0.3 }, 10), 0, 0.31, 0, wine);
     put(cyl(0.021, 0.021, 0.04, 0x8E2F45, null, 10), 0, 0.345, 0, wine);
     put(rbox(0.07, 0.07, 0.01, 0.005, 0xF7F3EA), 0, 0.11, 0.048, wine);
-    [0, 1].forEach(i => {
-      const b = new THREE.Group(); b.position.set(0.05 + i * 0.11, 0.61, 0.02 - i * 0.06); g.add(b);
-      put(cyl(0.035, 0.035, 0.15, 0x8A4B1E, { roughness: 0.3 }, 14), 0, 0.075, 0, b);
-      put(cyl(0.014, 0.03, 0.05, 0x8A4B1E, { roughness: 0.3 }, 10), 0, 0.175, 0, b);
-      put(cyl(0.016, 0.016, 0.02, 0xF2E6A0, null, 10), 0, 0.21, 0, b);
-      put(rbox(0.05, 0.05, 0.01, 0.004, 0xF2E6A0), 0, 0.08, 0.035, b);
+    /* 맥주: 앞쪽 가운데에 크게. 호박색 병 + 금색 병뚜껑 + 흰 띠 라벨 "BEER" (와인·문 칸 음료와 한눈에 구분) */
+    const beerLabel = (() => {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 96;
+      const x = c.getContext('2d');
+      x.fillStyle = '#FFFDF4'; x.fillRect(0, 0, 256, 96);
+      x.fillStyle = '#E8B923'; x.fillRect(0, 0, 256, 12); x.fillRect(0, 84, 256, 12);
+      x.fillStyle = '#B8651B'; x.font = '900 46px Nunito, Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      [42, 170].forEach(cx => x.fillText('BEER', cx, 50));    /* 둘레 양쪽에 써서 어느 쪽에서 봐도 보임 */
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const amber = { roughness: 0.25, emissive: 0x7A3A0A, emissiveIntensity: 0.25 };
+    [[-0.06, 0.12], [0.08, 0.1]].forEach(([bx, bz], i) => {
+      const b = new THREE.Group(); b.position.set(bx, 0.61, bz); g.add(b);
+      put(cyl(0.046, 0.046, 0.19, 0xC0701F, amber, 18), 0, 0.095, 0, b);                 /* 몸통 */
+      put(cyl(0.018, 0.044, 0.06, 0xC0701F, amber, 14), 0, 0.22, 0, b);                  /* 어깨 */
+      put(cyl(0.018, 0.018, 0.04, 0xC0701F, amber, 12), 0, 0.27, 0, b);                  /* 목 */
+      put(cyl(0.023, 0.023, 0.018, 0xE8B923, { metalness: 0.6, roughness: 0.3 }, 14), 0, 0.297, 0, b);   /* 금색 병뚜껑 */
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.085, 24, 1, true), mat(0xFFFFFF, { map: beerLabel, roughness: 0.6 })), 0, 0.1, 0, b);   /* 라벨 띠 */
       b.traverse(o => { o.userData.beer = i; });      /* 문이 열려 있을 때 누르면 '맥주 놀이' */
       fridgeBeers.push({ g: b, home: b.position.clone() });
     });
+    /* 맥주 둘레 넉넉한 투명 터치 자리 (병이 작아 누르기 어려워서). 병을 꺼내도 냉장고에 남음 */
+    const beerHit = put(new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.38, 0.34, 1, 0.01), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false })), 0.01, 0.8, 0.09, g);
+    beerHit.userData.beer = 0; beerHit.castShadow = false; beerHit.receiveShadow = false;
     /* 위 칸: 과일 접시 (사과 · 귤 · 포도) */
     put(cyl(0.2, 0.16, 0.03, 0xFFFFFF, null, 24), 0, 1.04, 0.02, g);
     put(sph(0.06, 0xE5484D, null, 16), -0.1, 1.11, 0.03, g);
@@ -2109,6 +2124,29 @@ function boot(){
   const beerRoll = () => { let r = Math.random(); for (const [k, p] of BEER_ODDS) { if ((r -= p) < 0) return k; } return 'take'; };
   const faceTo = (s, p) => Math.atan2(p.x - s.pos.x, p.z - s.pos.z);
   function canBeer(){ return canInteract() && !act && actMenu.hidden && cookMenu.hidden && fridgeDoor.target > 0.5; }
+  /* 문이 열려 있으면 맥주 위에 동그란 🍺 버튼이 떠서 어디가 술인지 바로 보임 (버튼을 눌러도 시작) */
+  const beerCss = document.createElement('style');
+  beerCss.textContent =
+    '.beer-tip{position:fixed;z-index:28;left:0;top:0;transform:translate(-50%,-100%);display:flex;align-items:center;gap:4px;min-height:44px;padding:0 14px 0 10px;border-radius:999px;border:1.5px solid #1F1B24;background:#FFE9A8;box-shadow:0 3px 0 #1F1B24;font:900 14px Nunito,"Gowun Dodum",sans-serif;color:#1F1B24;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;animation:beerBob 1.6s ease-in-out infinite}' +
+    '.beer-tip[hidden]{display:none}.beer-tip .bi{font:22px/1 "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}' +
+    '.beer-tip::after{content:"";position:absolute;left:50%;bottom:-7px;width:10px;height:10px;background:#FFE9A8;border-right:1.5px solid #1F1B24;border-bottom:1.5px solid #1F1B24;transform:translateX(-50%) rotate(45deg)}' +
+    '.beer-tip:focus-visible{outline:3px solid #5565AA;outline-offset:2px}.beer-tip:active{box-shadow:0 1px 0 #1F1B24}' +
+    '@keyframes beerBob{0%,100%{margin-top:0}50%{margin-top:-5px}}@media (prefers-reduced-motion:reduce){.beer-tip{animation:none}}' +
+    'body.layout-edit .beer-tip,body:not([data-mode="room"]) .beer-tip{display:none}';
+  document.head.appendChild(beerCss);
+  const beerTip = document.createElement('button');
+  beerTip.type = 'button'; beerTip.className = 'beer-tip'; beerTip.hidden = true; beerTip.setAttribute('aria-label', '맥주 꺼내기');
+  beerTip.innerHTML = '<span class="bi" aria-hidden="true">🍺</span>맥주';
+  document.body.appendChild(beerTip);
+  beerTip.addEventListener('click', () => { beerTip.hidden = true; startBeer(0); });
+  function placeBeerTip(){
+    const on = !beer && fridgeDoor.x > 1.2 && canBeer() && !lift.pend;
+    if (beerTip.hidden === on) beerTip.hidden = !on;
+    if (!on) return;
+    const s = toScreen(fridge.localToWorld(new V3(0.01, 1.0, 0.1)));
+    beerTip.style.left = Math.min(Math.max(s.x, 50), window.innerWidth - 50) + 'px';
+    beerTip.style.top = Math.max(s.y, 80) + 'px';
+  }
   function startBeer(i){
     if (!canBeer()) return false;
     const B = fridgeBeers[i] || fridgeBeers[0];
@@ -2140,13 +2178,13 @@ function boot(){
   }
   function cancelBeer(){ if (!beer) return; hush('ho1'); hush('ho2'); endBeer(); }
   /* 손 자리 ↔ 병 자리 (병은 손 안쪽·아래에 붙어 있음) */
-  const handOn = (bp, s, sd) => bp.clone().addScaledVector(sideOf(s), 0.075 * sd).add(new V3(0, 0.11, 0));
-  const bottleIn = (hp, s, sd) => hp.clone().addScaledVector(sideOf(s), -0.075 * sd).add(new V3(0, -0.11, 0));
+  const handOn = (bp, s, sd) => bp.clone().addScaledVector(sideOf(s), 0.095 * sd).add(new V3(0, 0.12, 0));
+  const bottleIn = (hp, s, sd) => hp.clone().addScaledVector(sideOf(s), -0.095 * sd).add(new V3(0, -0.12, 0));
   const beerHome = me => fridge.localToWorld(me.B.home.clone());
   function carry(me, at, k){                            /* 병을 세계 좌표 at에 (k: 들린 크기 0~1) */
     const g = me.B.g;
     if (g.parent !== scene) scene.add(g);
-    g.position.copy(at); g.rotation.set(0, fridge.rotation.y, 0); g.scale.setScalar(1 + 0.6 * k);
+    g.position.copy(at); g.rotation.set(0, fridge.rotation.y, 0); g.scale.setScalar(1 + 0.3 * k);
   }
   /* 60Hz */
   function stepBeer(h){
@@ -3928,6 +3966,7 @@ function boot(){
     placeCookUI();
     placeActMenu();
     placeMono();
+    placeBeerTip();
     /* 확인용 근접 카메라: 주소 끝에 ?closeup=ho1 (또는 ho2, both) &yaw=각도 &d=거리 &h=높이 */
     if (CLOSEUP) {                                        /* closeup=both: 둘 다 보이게, 둘 사이 가운데를 봄 */
       const both = CLOSEUP.who === 'both', B = CLOSEUP.who === 'ho2' ? B2 : B1, O = B === B1 ? B2 : B1;
