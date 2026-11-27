@@ -2292,7 +2292,7 @@ function boot(){
       if (hit(1.1) || me.tugged && !me.got) {            /* 뺏김! 류스케: 흠칫 + >< 얼굴 + "앗, 내 맥주…!" */
         me.got = true; me.hold = 'ho2'; Bus.audio.tap();
         A.expr = 'yuck'; A.squash.v += 2.2 * amp; fxOf(A).shiver = reduced() ? 0.2 : 0.5;
-        hush('ho2'); say('ho1', BEER_HO1.snatch, 'bad', 1.6);   /* 말풍선 겹치지 않게 아키사 대사는 닫음 */
+        hush('ho2'); say('ho1', BEER_HO1.snatch, 'ok', 1.6);   /* 말풍선 겹치지 않게 아키사 대사는 닫음 */
       }
       if (hit(2.1) && A.expr === 'yuck') A.expr = null;
       const pass = kk2(1.1, 1.45), from = me.from || handOn(bottleIn(holdA, A, 1), K, 1);
@@ -2312,7 +2312,7 @@ function boot(){
     }
     if (me.ph === 'put') {                              /* 아키사: 병 넣기 */
       K.faceTarget = me.bt.face = sp.inF;
-      if (hit(0.05)) { if (A.expr === 'yuck') A.expr = null; say('ho1', BEER_HO1.sulk, 'bad', 2.6); }   /* 류스케: 시무룩 한마디 */
+      if (hit(0.05)) { if (A.expr === 'yuck') A.expr = null; say('ho1', BEER_HO1.sulk, 'ok', 2.6); }   /* 류스케: 시무룩 한마디 */
       const holdK = W(K, 0.2, 0.62, 0.36), into = handOn(beerHome(me), K, 1);
       const go = kk2(0.15, 0.6), ret = kk2(0.7, 1.0);
       const hk = via(via(holdK.clone(), into, go), restW(K, 1), ret);
