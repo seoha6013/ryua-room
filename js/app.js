@@ -91,11 +91,12 @@ https://www.tooplate.com/view/2171-spatial-diorama
     bell: function(f, t, v, send){
       this.partials(this.voice(send), f, t, v, [[1, 1, 2.4], [2.756, 0.45, 1.5], [5.404, 0.22, 0.9], [8.933, 0.1, 0.5]], 0.006);
     },
-    tap: function(){
+    tap: function(k){   /* k = 볼륨 배수 (생략 = 1) */
       if (!this.live()) return;
+      k = k == null ? 1 : k;
       var seq = [0, 2, 4, 2, 3, 1, 4, 5];
       var notes = [1046.5, 1174.66, 1318.51, 1567.98, 1760, 2093];
-      this.bar(notes[seq[this.stepIdx++ % seq.length]], this.ctx.currentTime + 0.004, 0.16, 0.14);
+      this.bar(notes[seq[this.stepIdx++ % seq.length]], this.ctx.currentTime + 0.004, 0.16 * k, 0.14 * k);
     },
     chime: function(){
       if (!this.live()) return;

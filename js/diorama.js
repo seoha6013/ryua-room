@@ -2984,8 +2984,9 @@ function boot(){
     bun2.hopDelay = 0.14; bun2.hopV = v * 0.92;   /* HO2도 살짝 늦게 따라 뜀 */
   }
   function hopBud(v){ if (bun2.jumpY > 0.01) return; bun2.jumpV = reduced() ? v * 0.6 : v; bun2.squash.v -= 3.5; }
+  const FOLLOW_VOL = 0.5;   /* 들린 친구 따라갈 때 발소리 크기 */
   function footstep(n){
-    Bus.audio.tap();
+    Bus.audio.tap(liftOf(bun2) ? FOLLOW_VOL : 1);
     bun.squash.v += 1.1;
     const foot = feet[n % 2], p = puffs[puffIdx++ % puffs.length];
     p.m.position.copy(foot.getWorldPosition(new V3())); p.m.position.y = FLOOR + 0.06;
@@ -3161,7 +3162,7 @@ function boot(){
       bun2.moving = true; bun2.idle = 0;
       const prev = Math.floor(bun2.phase / Math.PI);
       bun2.phase += h * STEP_RATE * Math.PI;
-      if (Math.floor(bun2.phase / Math.PI) !== prev) bun2.squash.v += 1.1;
+      if (Math.floor(bun2.phase / Math.PI) !== prev) { bun2.squash.v += 1.1; if (lift.on && lift.s === bun) Bus.audio.tap(FOLLOW_VOL); }   /* 들린 HO1 따라갈 때만 발소리 */
       bun2.gait = Math.min(1, bun2.gait + h * 7);
     } else {
       if (bun2.moving) bun2.phase = Math.ceil(bun2.phase / Math.PI) * Math.PI;
