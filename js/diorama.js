@@ -478,6 +478,7 @@ function boot(){
   const fridge = new THREE.Group(); fridge.position.set(FRIDGE.x, FLOOR, FRIDGE.z); scene.add(fridge);
   const fridgeDoor = { x: 0, v: 0, target: 0 };
   let fridgePivot, fridgeGlow;
+  const fridgeBeers = [];                              /* 맥주병 2개 { g, home(냉장고 안 자리) } */
   {
     const g = fridge, W = 0.78, H = 1.86, D = 0.68, col = 0xDDE3F5, lining = 0xFFFFFF;
     const paint = [];
@@ -514,6 +515,8 @@ function boot(){
       put(cyl(0.014, 0.03, 0.05, 0x8A4B1E, { roughness: 0.3 }, 10), 0, 0.175, 0, b);
       put(cyl(0.016, 0.016, 0.02, 0xF2E6A0, null, 10), 0, 0.21, 0, b);
       put(rbox(0.05, 0.05, 0.01, 0.004, 0xF2E6A0), 0, 0.08, 0.035, b);
+      b.traverse(o => { o.userData.beer = i; });      /* 문이 열려 있을 때 누르면 '맥주 놀이' */
+      fridgeBeers.push({ g: b, home: b.position.clone() });
     });
     /* 위 칸: 과일 접시 (사과 · 귤 · 포도) */
     put(cyl(0.2, 0.16, 0.03, 0xFFFFFF, null, 24), 0, 1.04, 0.02, g);
@@ -1386,6 +1389,7 @@ function boot(){
   /* 냉장고 문: 누르면 HO1이 앞으로 가고 문이 열림. 다시 누르면 닫힘 */
   const FRIDGE_SPOT = { x: FRIDGE.x - 1.1, z: FRIDGE.z + 1.25, face: Math.PI * 0.8 };   /* 열린 문 왼쪽에 서서 안을 봄 */
   function toggleFridge(){
+    if (beer) { cancelBeer(); return; }
     const open = fridgeDoor.target < 0.5;
     fridgeDoor.target = open ? 1.95 : 0;
     if (open) { fridgeDoor.v += 2; Bus.audio.drawerOpen(2); walkTo(FRIDGE_SPOT.x, FRIDGE_SPOT.z, FRIDGE_SPOT.face); }
@@ -1786,7 +1790,7 @@ function boot(){
   function budGoto(h){
     const t = budTarget, dx = t.x - bun2.pos.x, dz = t.z - bun2.pos.z, d = Math.hypot(dx, dz);
     if (d > 0.08) {
-      const mv = Math.min(d, SPEED * 1.15 * h), bx = bun2.pos.x, bz = bun2.pos.z, ux = dx / d, uz = dz / d, sd = t.side || 1;
+      const mv = Math.min(d, SPEED * (t.fast ? 2.4 : 1.15) * h), bx = bun2.pos.x, bz = bun2.pos.z, ux = dx / d, uz = dz / d, sd = t.side || 1;
       let ok = false;                                   /* HO1처럼: 가구에 막히면 옆으로 꺾어서 돌아감 */
       for (const a of [0, sd * 0.5, sd * 0.95, sd * 1.4, -sd * 0.5, -sd * 0.95, -sd * 1.4]) {
         const c = Math.cos(a), sn = Math.sin(a);
@@ -1796,7 +1800,7 @@ function boot(){
       if (!ok) { bun2.pos.x += ux * mv; bun2.pos.z += uz * mv; resolve(bun2.pos); }
       bun2.faceTarget = Math.atan2(bun2.pos.x - bx, bun2.pos.z - bz); bun2.moving = true;
       const prev = Math.floor(bun2.phase / Math.PI);
-      bun2.phase += h * STEP_RATE * Math.PI; if (Math.floor(bun2.phase / Math.PI) !== prev) bun2.squash.v += 1.1;
+      bun2.phase += h * STEP_RATE * (t.fast ? 1.9 : 1) * Math.PI; if (Math.floor(bun2.phase / Math.PI) !== prev) { bun2.squash.v += 1.1; if (t.fast) Bus.audio.tap(0.6); }   /* 후다닥: 빠른 걸음 + 발소리 */
       bun2.gait = Math.min(1, bun2.gait + h * 7);
       const real = Math.hypot(bun2.pos.x - bx, bun2.pos.z - bz);
       if (d < (t.best == null ? Infinity : t.best) - 0.05) { t.best = d; t.noProg = 0; } else t.noProg = (t.noProg || 0) + h;
@@ -1846,7 +1850,7 @@ function boot(){
   const autoWait = () => 60 + Math.random() * 60;
   function canInteract(){
     return Bus.mode === 'room' && !fl.active && !edit.on && !lift.on && !lift.fall && !egg.on && egg.k === 0 && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
-      && !cook.on && !cook.eat && !water.on;
+      && !cook.on && !cook.eat && !water.on && !beer;
   }
   /* 두 사람이 설 자리: 가구에 걸리면 방 가운데 쪽으로 조금씩 옮겨 봄 */
   function actSpots(A, M0){
@@ -1905,6 +1909,7 @@ function boot(){
   window.addEventListener('keydown', e => {
     noteInput();
     if (KEYMAP[e.code] && act && !isField(e.target)) endAct();             /* 방향키로 걷기 시작하면 멈춤 */
+    if (KEYMAP[e.code] && beer && !isField(e.target)) cancelBeer();
     if (e.key === 'Escape' && !actMenu.hidden) { closeActMenu(); e.stopPropagation(); }
   }, true);
 
@@ -2093,6 +2098,194 @@ function boot(){
   });
 
   /* =========================================================
+     냉장고 맥주 (누구나). 냉장고 문이 열려 있을 때 맥주병을 누르면:
+     류스케가 냉장고 앞으로 → 동그란 손으로 병을 꺼내 듦 → 아키사가 💦 후다닥 달려옴 → "안 돼요 반장님ㅠㅠ"
+     결과(랜덤): 압수(대부분) / 실랑이 끝에 압수(가끔) / 류스케 승리(아주 가끔: 머리 위로 들어 안 닿음, 아키사 "…")
+     끝나면 병은 냉장고로, 문 닫힘. 진행 중 다른 데 누르기·메뉴·편집·방향키·스페이스 = 바로 원래대로(문은 그대로)
+     ========================================================= */
+  const BEER_LINE = '안 돼요 반장님ㅠㅠ';               /* 이벤트 대사 (고정). say() 말풍선이라 💬를 꺼 둬도 보임 */
+  const BEER_ODDS = [['take', 0.72], ['tug', 0.2], ['win', 0.08]];   /* 압수 · 실랑이 · 류스케 승리 */
+  let beer = null;
+  const beerRoll = () => { let r = Math.random(); for (const [k, p] of BEER_ODDS) { if ((r -= p) < 0) return k; } return 'take'; };
+  const faceTo = (s, p) => Math.atan2(p.x - s.pos.x, p.z - s.pos.z);
+  function canBeer(){ return canInteract() && !act && actMenu.hidden && cookMenu.hidden && fridgeDoor.target > 0.5; }
+  function startBeer(i){
+    if (!canBeer()) return false;
+    const B = fridgeBeers[i] || fridgeBeers[0];
+    const L = (x, z) => resolve(fridge.localToWorld(new V3(x, 0, z)));
+    const sp = { a: L(0.28, 0.9), b: L(-0.38, 1.72), back: L(-1.05, 2.15), away: L(-0.7, 3.3), inF: fridge.rotation.y + Math.PI };
+    const me = beer = { B, sp, res: beerRoll(), ph: 'walk', t: 0, wait: 0, a1: false, hold: 'ho1', hp: null, sulk: 0, tk: 0 };
+    keys.clear(); hush('ho1'); hush('ho2'); monoHide();
+    seatWalk({ stand: [sp.a], yaw: [sp.inF] }, 0, () => { if (beer === me) me.a1 = true; });
+    /* 아키사: 멀리 있으면 그대로, 가까우면 딴 데로 걸어가서 딴청 (움직임 줄이기면 그 자리) */
+    const far = Math.hypot(bun2.pos.x - sp.b.x, bun2.pos.z - sp.b.z) > 2.2;
+    const st = far || reduced() ? bun2.pos.clone() : sp.away;
+    budTarget = me.bt = { x: st.x, z: st.z, face: Math.atan2(camera.position.x - st.x, camera.position.z - st.z), arrived: false };
+    return true;
+  }
+  /* 병을 냉장고 안 원래 자리로 */
+  function homeBeer(me){
+    const g = me.B.g;
+    if (g.parent !== fridge) fridge.add(g);
+    g.position.copy(me.B.home); g.rotation.set(0, 0, 0); g.scale.setScalar(1);
+  }
+  function endBeer(){
+    const me = beer; if (!me) return;
+    beer = null;
+    homeBeer(me);
+    if (budTarget && budTarget === me.bt) budTarget = null;
+    if (me.ph === 'walk' && bun.onArrive) { bun.onArrive = null; bun.moving = false; bun.target = null; }
+    [bun, bun2].forEach(s => { s.pose = null; s.shut = false; s.hreq = null; s.expr = null; if (s.fx) s.fx.shiver = 0; });
+    bun.lock = 0; bun.idle = 0; bun2.idle = 0;
+  }
+  function cancelBeer(){ if (!beer) return; hush('ho1'); hush('ho2'); endBeer(); }
+  /* 손 자리 ↔ 병 자리 (병은 손 안쪽·아래에 붙어 있음) */
+  const handOn = (bp, s, sd) => bp.clone().addScaledVector(sideOf(s), 0.075 * sd).add(new V3(0, 0.11, 0));
+  const bottleIn = (hp, s, sd) => hp.clone().addScaledVector(sideOf(s), -0.075 * sd).add(new V3(0, -0.11, 0));
+  const beerHome = me => fridge.localToWorld(me.B.home.clone());
+  function carry(me, at, k){                            /* 병을 세계 좌표 at에 (k: 들린 크기 0~1) */
+    const g = me.B.g;
+    if (g.parent !== scene) scene.add(g);
+    g.position.copy(at); g.rotation.set(0, fridge.rotation.y, 0); g.scale.setScalar(1 + 0.6 * k);
+  }
+  /* 60Hz */
+  function stepBeer(h){
+    const me = beer; if (!me) return;
+    if (Bus.mode !== 'room' || edit.on || fl.active || lift.on || sleep.on || seat.on) { cancelBeer(); return; }
+    const A = bun, K = bun2, sp = me.sp, amp = reduced() ? 0.5 : 1;
+    const hit = x => T0 < x && me.t >= x;
+    if (me.ph === 'walk') {                             /* 냉장고 앞까지 (못 가면 7초 뒤 그 자리에서) */
+      me.wait += h;
+      if (!((me.a1 || (!A.moving && me.wait > 0.5)) && me.bt.arrived) && me.wait < 7) return;   /* 아키사가 딴 데로 갈 때까지도 기다림 */
+      A.moving = false; A.target = null; A.onArrive = null;
+      me.ph = 'grab'; me.t = 0;
+    }
+    const T0 = me.t; me.t += h * (reduced() ? 1.7 : 1); const T = me.t;
+    const rA = restW(A, 1), rK = restW(K, 1);
+    const kk2 = (a, b) => kk(a, b, T);
+    A.lock = 99;
+    if (me.ph === 'grab') {                             /* 손 쏙 → 병 꺼내 가슴 앞으로 */
+      A.faceTarget = sp.inF;
+      const bp = beerHome(me), grip = handOn(bp, A, 1), holdP = W(A, 0.2, 0.62, 0.36);
+      const reach = kk2(0.1, 0.5), back = kk2(0.6, 1.05);
+      const hp = via(via(rA.clone(), grip, reach), holdP, back);
+      setHands(A, hp, null);
+      A.pose = { lx: 0.14 * reach * (1 - back) };
+      if (T >= 0.55) carry(me, bottleIn(hp, A, 1), back);
+      if (hit(0.55)) { Bus.audio.tap(); A.squash.v -= 1.2 * amp; }
+      if (hit(0.9)) { A.expr = 'smile'; spawnHearts(1); }
+      if (hit(0.75)) {                                  /* 그 순간 아키사가 💦 후다닥 */
+        budTarget = me.bt = { x: sp.b.x, z: sp.b.z, face: 0, arrived: false, fast: true };
+        say('ho2', '💦', 'emo', 0);
+      }
+      if (T > 1.1) { me.ph = 'dash'; me.t = 0; }
+      return;
+    }
+    if (me.ph === 'dash') {                             /* 류스케는 신나서 몸 들썩, 아키사는 달려오는 중 */
+      A.faceTarget = mix(sp.inF, sp.inF + wrapA(faceTo(A, camera.position) - sp.inF), Math.min(1, T * 2));
+      const hp = W(A, 0.2, 0.62, 0.36); setHands(A, hp, null); carry(me, bottleIn(hp, A, 1), 1);
+      A.pose = { lz: Math.sin(T * 9) * 0.05 * amp };
+      if (budTarget === me.bt) me.bt.face = faceTo(K, A.pos);
+      if ((me.bt.arrived && T > 0.3) || T > 4) {
+        me.ph = 'talk'; me.t = 0;
+        say('ho2', BEER_LINE, '', 2.8);
+        K.squash.v -= 2 * amp; Bus.audio.hop();
+        A.expr = null; fxOf(A).shiver = reduced() ? 0.2 : 0.5; A.squash.v += 1.5 * amp;   /* 흠칫 */
+      }
+      return;
+    }
+    /* 여기부터: 둘이 마주 봄 */
+    const u = K.pos.clone().sub(A.pos); u.y = 0; const du = u.length() || 1; u.divideScalar(du);
+    if (me.ph === 'talk') {
+      A.faceTarget = Math.atan2(u.x, u.z); me.bt.face = Math.atan2(-u.x, -u.z); K.faceTarget = me.bt.face;
+      const holdA = W(A, 0.2, 0.62, 0.36);
+      if (me.res === 'win') {                            /* 류스케 승리: 머리 위로 번쩍 */
+        const up = kk2(0.5, 0.95), down = kk2(4.0, 4.6);
+        const top = W(A, 0.14, 2.1, 0.14);
+        let hp = via(holdA.clone(), top, up);
+        if (T > 4.0) { A.faceTarget = sp.inF; hp = via(hp, handOn(beerHome(me), A, 1), down); }
+        setHands(A, hp, null); carry(me, bottleIn(hp, A, 1), 1 - down);
+        A.pose = { lx: -0.08 * up * (1 - kk2(3.6, 4.0)) };
+        if (hit(0.95)) { A.expr = 'smile'; Bus.audio.chime(); }
+        const jumping = T > 1.0 && T < 3.3;
+        if (jumping) {                                  /* 아키사: 폴짝폴짝 손 뻗기 (안 닿음) */
+          [1.0, 1.6, 2.2, 2.8].forEach(x => { if (hit(x)) { hopBud(3.6); Bus.audio.hop(); } });
+          const reachK = W(K, 0.18, 0.95, 0.3); reachK.y += K.jumpY; reachK.lerp(top.clone().setY(reachK.y), 0.35);
+          setHands(K, reachK, null);
+          K.pose = { lx: -0.06 * amp };
+        } else K.pose = null;
+        if (hit(3.4)) { say('ho2', '…', '', 1.8); K.shut = true; }
+        if (hit(3.9)) K.shut = false;
+        if (T > 4.6) { homeBeer(me); me.ph = 'close'; me.t = 0; me.closer = A; }
+        return;
+      }
+      if (me.res === 'tug' && T < 3.0) {                 /* 실랑이: 둘이 병을 잡고 좌우로 당김 */
+        const grabK = kk2(0.6, 1.0);
+        const mid = A.pos.clone().lerp(K.pos, 0.5); mid.y = FLOOR + 0.02 + 0.62;
+        const pull = T > 1.0 ? Math.sin((T - 1.0) * Math.PI * 2.25) * 0.15 * amp : 0;   /* 2초 동안 네댓 번 왔다 갔다 (끝은 아키사 쪽) */
+        const bc = via(holdA.clone(), mid.clone().addScaledVector(u, pull), kk2(0.6, 1.0));
+        const hA = bc.clone().addScaledVector(u, -0.09).add(new V3(0, 0.03, 0));
+        const hK = via(rK.clone(), bc.clone().addScaledVector(u, 0.09).add(new V3(0, 0.03, 0)), grabK);
+        setHands(A, hA, null); setHands(K, hK, null);
+        carry(me, bc.clone().add(new V3(0, -0.08, 0)), 1);
+        A.pose = { lx: -pull * 0.9 * grabK }; K.pose = { lx: pull * 0.9 * grabK };
+        const tick = Math.floor((T - 1.0) * 3);         /* 당길 때마다 톡 */
+        if (T > 1.0 && tick !== me.tk) { me.tk = tick; Bus.audio.tap(); (tick % 2 ? K : A).squash.v -= 1 * amp; }
+        if (hit(1.4)) fxOf(A).shiver = 0.4;
+        if (T + h * 2 >= 3.0) { me.from = hK.clone(); me.res = 'take'; me.t = 1.1; me.tugged = true; K.squash.v -= 2 * amp; A.squash.v += 2 * amp; Bus.audio.bonk(); }   /* 결국 아키사가 휙 */
+        return;
+      }
+      /* 압수: 아키사가 손으로 병을 뺏음 → 류스케는 시무룩하게 물러남 → 아키사가 냉장고에 넣고 문을 닫음 */
+      const holdK = W(K, 0.2, 0.62, 0.36);
+      if (T < 1.1) {
+        const bp = bottleIn(holdA, A, 1), grabK = kk2(0.6, 1.05);
+        setHands(A, holdA, null); setHands(K, via(rK.clone(), handOn(bp, K, 1), grabK), null);
+        carry(me, bp, 1);
+        return;
+      }
+      if (hit(1.1) || me.tugged && !me.got) { me.got = true; me.hold = 'ho2'; Bus.audio.tap(); }
+      const pass = kk2(1.1, 1.45), from = me.from || handOn(bottleIn(holdA, A, 1), K, 1);
+      const hk = via(from, holdK, pass);
+      setHands(K, hk, null); carry(me, bottleIn(hk, K, 1), 1);
+      if (T >= 1.4 && !me.moved) {                       /* 자리 바꾸기: 류스케 뒤로, 아키사 냉장고 앞으로 */
+        me.moved = true; me.sulk = 0.001; A.lock = 0;
+        walkTo(sp.back.x, sp.back.z, faceTo({ pos: sp.back }, sp.a));
+        budTarget = me.bt = { x: sp.a.x, z: sp.a.z, face: sp.inF, arrived: false };
+      }
+      if (me.moved && ((me.bt.arrived && !A.moving) || T > 7)) { me.ph = 'put'; me.t = 0; }
+      return;
+    }
+    if (me.ph === 'put') {                              /* 아키사: 병 넣기 */
+      K.faceTarget = me.bt.face = sp.inF;
+      const holdK = W(K, 0.2, 0.62, 0.36), into = handOn(beerHome(me), K, 1);
+      const go = kk2(0.15, 0.6), ret = kk2(0.7, 1.0);
+      const hk = via(via(holdK.clone(), into, go), restW(K, 1), ret);
+      if (T < 1.05) setHands(K, hk, null);
+      K.pose = { lx: 0.12 * go * (1 - ret) };
+      if (T < 0.65) carry(me, bottleIn(hk, K, 1), 1 - go); else if (me.B.g.parent !== fridge) { homeBeer(me); Bus.audio.tap(); }
+      if (T > 0.7) { me.ph = 'close'; me.t = 0; me.closer = K; }
+      return;
+    }
+    if (me.ph === 'close') {                            /* 문 닫기 (손으로 톡) → 잠깐 뒤 끝 */
+      const C = me.closer;
+      if (hit(0.15)) { fridgeDoor.target = 0; Bus.audio.drawerClose(2, false); }
+      const push = kk2(0, 0.2) * (1 - kk2(0.45, 0.7));
+      if (T < 0.75) setHands(C, null, via(restW(C, -1), W(C, -0.3, 1.0, 0.5), push));
+      if (C === A) A.faceTarget = sp.inF;
+      if (hit(0.9) && me.sulk) K.faceTarget = me.bt.face = faceTo(K, A.pos);   /* 아키사: 문 닫고 류스케 쪽 봄 */
+      if (T > (me.sulk ? 2.2 : 1.2)) endBeer();
+    }
+  }
+  /* 류스케 시무룩 (압수당한 뒤 고개 숙이고 몸이 처짐). 걷는 동안에도 */
+  function poseBeerSulk(h){
+    const me = beer; if (!me || !me.sulk) return;
+    me.sulk = Math.min(1, me.sulk + h / 0.5);
+    const k = ease(me.sulk) * (reduced() ? 0.6 : 1);
+    bun.pose = { lx: 0.24 * k, dy: -0.07 * k };
+    if (!bun.moving) bun.faceTarget = faceTo(bun, bun2.pos);
+  }
+
+  /* =========================================================
      혼잣말 말풍선: 방에서 10~20초 동안 아무 조작이 없으면, 기록장 명대사 중 하나가
      그 캐릭터 머리 위에 글자가 톡톡 찍히며 뜸 → 3.5초 뒤 사라짐. 한 번에 한 명, 같은 대사 연달아 X.
      움직이거나 누르면 바로 사라지고 다시 셈. 오른쪽 위 💬 버튼으로 끄기/켜기(브라우저에 기억)
@@ -2135,7 +2328,7 @@ function boot(){
   function monoBlocked(){
     return !mono.on || Bus.mode !== 'room' || fl.active || edit.on || sleep.on || sleep.k > 0 || cook.on || cook.eat || act
       || !actMenu.hidden || !cookMenu.hidden || water.on || seat.where === 'bath' || bun.moving || bun2.moving
-      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden || lift.on || lift.fall || lift.pend || egg.on || egg.k > 0;
+      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden || lift.on || lift.fall || lift.pend || egg.on || egg.k > 0 || beer;
   }
   /* 60Hz */
   function stepMono(h){
@@ -2227,6 +2420,7 @@ function boot(){
   }
   function jumpAction(){
     if (lift.on || lift.fall) return;
+    if (beer) { cancelBeer(); return; }
     if (egg.on || egg.k > 0) { endEgg(); return; }
     if (sleep.on) { wakeUp(); return; }
     if (cook.eat) return;
@@ -2425,6 +2619,7 @@ function boot(){
     if (hit.object.userData.bunny) return { type: 'bunny' };
     if (hit.object.userData.buddy) return { type: 'buddy' };
     if (hit.object.userData.bed) return { type: 'bed' };
+    if (hit.object.userData.beer != null && fridgeDoor.target > 0.5) return { type: 'beer', i: hit.object.userData.beer };
     if (hit.object.userData.use) return { type: hit.object.userData.use };
     if (hit.object.userData.floor) return { type: 'floor', point: hit.point };
     return null;
@@ -2447,6 +2642,7 @@ function boot(){
     if (moved > 7 || long || Bus.mode !== 'room' || fl.active) return;
     if (hadMenu || !actMenu.hidden) { closeActMenu(); return; }   /* 선택지 바깥을 누르면 닫히기만 함 */
     if (act) endAct();                                   /* 동작 중에 누르면 멈추고 원래대로 */
+    if (beer) { cancelBeer(); return; }                  /* 맥주 놀이 중에 누르면 바로 원래대로 (병은 냉장고로) */
     if (sleep.on) { wakeUp(); return; }                 /* 자는 중엔 아무 데나 누르면 깸 */
     if (egg.on || egg.k > 0) { endEgg(); return; }      /* 이스터에그 중엔 아무 데나 누르면 원래대로 */
     if (cook.eat) return;                                /* 먹는 동안엔 눌러도 그대로 */
@@ -2468,6 +2664,7 @@ function boot(){
     else if (h.type === 'buddy') openActMenu('ho2');
     else if (h.type === 'bed') bedTap();               /* 한 번 = 잠자기(1.2초 뒤), 1.2초 안에 3번 = 이스터에그 */
     else if (h.type === 'sofa' || h.type === 'table' || h.type === 'bath') sitDown(h.type);
+    else if (h.type === 'beer') startBeer(h.i);        /* 열린 냉장고 안 맥주병 */
     else if (h.type === 'fridge') toggleFridge();
     else if (h.type === 'plant') { sprout.g.v += 1.5; goWater(); }
     else if (h.type === 'kitchen') openCookMenu();
@@ -2495,7 +2692,7 @@ function boot(){
   const liftOf = s => (lift.on || lift.fall) && lift.s === s;   /* 이 캐릭터가 들렸거나 떨어지는 중 */
   function canLift(){
     return Bus.mode === 'room' && !fl.active && !edit.on && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
-      && !cook.on && !cook.eat && !act && !water.on && !lift.on && !lift.fall && !egg.on && egg.k === 0;
+      && !cook.on && !cook.eat && !act && !water.on && !lift.on && !lift.fall && !egg.on && egg.k === 0 && !beer;
   }
   /* 어지러운 별 3개 (높이 떨어뜨렸을 때 머리 위에서 빙글빙글) */
   const dizzy = { t: 0, s: null, P: null, stars: [] };
@@ -2906,7 +3103,7 @@ function boot(){
     if (on) endEgg();
     if (on && sleep.on) wakeUp();
     if (on && seat.on) standUp();
-    if (on) { cancelCook(); closeActMenu(); endAct(); }                                 /* 가구 배치 편집을 열면 요리 취소 */
+    if (on) { cancelCook(); closeActMenu(); endAct(); cancelBeer(); }                                 /* 가구 배치 편집을 열면 요리 취소 */
     edit.on = on; select(null); showPal(false);
     document.body.classList.toggle('layout-edit', on);
     $('lbTools').hidden = !on; $('lbToggle').hidden = on; $('lbCode').hidden = true;
@@ -3057,7 +3254,7 @@ function boot(){
     } else {
       bun.gait = Math.max(0, bun.gait - h * 5);
       bun.idle += h;
-      if (bun.idle > 2.2 && bun.lock <= 0 && Bus.mode === 'room' && !cook.on && !cook.eat && !act) bun.faceTarget = Math.atan2(camera.position.x - bun.pos.x, camera.position.z - bun.pos.z);
+      if (bun.idle > 2.2 && bun.lock <= 0 && Bus.mode === 'room' && !cook.on && !cook.eat && !act && !beer) bun.faceTarget = Math.atan2(camera.position.x - bun.pos.x, camera.position.z - bun.pos.z);
     }
     bun.lock -= h;
     bun.face += wrapA(bun.faceTarget - bun.face) * Math.min(1, h * 9);
@@ -3075,6 +3272,7 @@ function boot(){
     stepWater(h);
     stepBath(h);
     stepAct(h);
+    stepBeer(h); poseBeerSulk(h);
     stepMono(h);
     stepLift(h);
     stepEgg(h);
@@ -3286,7 +3484,7 @@ function boot(){
     focus(id, onReveal){
       endEgg();
       if (sleep.on) wakeUp();
-      cancelCook(); closeActMenu(); endAct();             /* 메뉴를 열면 요리·상호작용 취소 */
+      cancelCook(); closeActMenu(); endAct(); cancelBeer();   /* 메뉴를 열면 요리·상호작용·맥주 취소 */
       focusId = id;
       setHovered(null);
       const s = SPOTS[id];
@@ -3346,6 +3544,8 @@ function boot(){
     sleep: goSleep, wake: wakeUp,
     get actState(){ return act ? { kind: act.kind, go: +act.go.toFixed(2), auto: act.auto } : null; },
     autoSoon(){ AUTO.at = time + 1; },
+    beer: i => startBeer(i || 0),
+    get beerState(){ return beer ? { ph: beer.ph, t: +beer.t.toFixed(2), res: beer.res, hold: beer.hold, sulk: +beer.sulk.toFixed(2) } : null; },
     bathPlay: k => ({ ho1: bathSplashFight, ho2: bathFoamHat, duck: bathDuckSqueak })[k](),
     get near(){ return nearSection(); },
     get heartsAlive(){ return hearts.filter(h => h.alive && h.m.visible).length; }
@@ -3707,7 +3907,7 @@ function boot(){
     if (hoverXY && !hoverXY.touch && Bus.mode === 'room' && !fl.active && !edit.on) {
       const hp2 = pick(hoverXY.x, hoverXY.y);
       setHovered(hp2 && hp2.type === 'section' ? hp2.id : null);
-      if (hp2 && /^(bunny|buddy|bed|sofa|table|bath|fridge|plant|kitchen|tray)$/.test(hp2.type)) renderer.domElement.style.cursor = 'pointer';
+      if (hp2 && /^(bunny|buddy|bed|sofa|table|bath|fridge|beer|plant|kitchen|tray)$/.test(hp2.type)) renderer.domElement.style.cursor = 'pointer';
     }
 
     /* HTML hotspots follow their 3D anchors */
