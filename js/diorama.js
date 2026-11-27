@@ -2875,8 +2875,8 @@ function boot(){
       /* 어지러움 게이지: 빠르게 + 방향을 자꾸 바꾸면(좌우 흔들기·빙글빙글 돌리기) 쌓이고, 천천히 들고 있으면 줄어듦 */
       { const v = Math.hypot(vx, vz); let turn = 0;
         if (v > 0.6) { const ang = Math.atan2(vz, vx); if (lift.pa != null) turn = Math.min(1, Math.abs(wrapA(ang - lift.pa)) / h / 7); lift.pa = ang; }
-        const gain = Math.max(0, v - 3) * (0.02 + 0.06 * turn);   /* 2026-11-28 둔감하게: 세게 흔들어도 0.7~1초, 살살은 거의 안 어지러움 (전: (v-1.8)*(0.08+0.34*turn)) */
-        lift.dz = clamp(lift.dz + (gain > 0 ? gain : -0.45) * h, 0, 1.4); }
+        const gain = Math.max(0, v - 4) * (0.01 + 0.035 * turn);   /* 2026-11-28 둔감하게: 한 번 더 둔감하게: 세게 흔들어도 2초쯤, 살살은 거의 안 어지러움 (전: (v-1.8)*(0.08+0.34*turn)) */
+        lift.dz = clamp(lift.dz + (gain > 0 ? gain : -0.6) * h, 0, 1.4); }
       if (!lift.woozy && lift.dz >= 1) {                /* 어질어질 시작 */
         lift.woozy = true; s.expr = 'dizzy'; s.shut = false; Bus.audio.woozy && Bus.audio.woozy();
         say(lift.who, '@_@', lift.who === 'ho1' ? 'ok' : '', 1.6); lift.talkT = 2.2;
