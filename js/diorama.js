@@ -1867,6 +1867,7 @@ function boot(){
     lean: { icon: '😌', label: '기대기', face: false, D: 1.22, dur: 4.4 },
     bump: { icon: '💫', label: '이마 콩', face: true, D: 1.25, dur: 2.4 }
   };
+  const PAT_TEXT = { fluffy: '푹신푹신', ryu: '너어…' };   /* 아키사 → 류스케 쓰다듬기 대사 (고정, 💬 꺼도 보임) */
   let act = null;
   const AUTO = { at: 60 + Math.random() * 60 };        /* 이 시각(time)이 지나면 알아서 하나 */
   const autoWait = () => 60 + Math.random() * 60;
@@ -1906,7 +1907,8 @@ function boot(){
     const A = ACTS[kind], M = bun.pos.clone().add(bun2.pos).multiplyScalar(0.5);
     const sp = actSpots(A, M);
     const me = act = { kind, A, auto: !!auto, go: -1, wait: 0, a1: false, fa: sp.fa, fb: sp.fb, sg: sp.sg,
-      leaner: who === 'ho2' ? bun2 : who === 'ho1' ? bun : (Math.random() < 0.5 ? bun : bun2) };
+      leaner: who === 'ho2' ? bun2 : who === 'ho1' ? bun : (Math.random() < 0.5 ? bun : bun2),
+      patter: who === 'ho2' ? bun2 : bun };            /* 쓰다듬기: 누른 캐릭터가 쓰다듬는 쪽 (정하지 않으면 류스케) */
     keys.clear();
     seatWalk({ stand: [sp.a], yaw: [sp.fa] }, 0, () => { if (act === me) me.a1 = true; });
     budTarget = me.bt = { x: sp.b.x, z: sp.b.z, face: sp.fb, arrived: false };
@@ -1956,8 +1958,9 @@ function boot(){
       if (hit(1.0)) say('ho1', '나이스~!', 'ok', 1.4);
       if (hit(1.4)) say('ho2', '…나이스입니다.', '', 1.4);
     },
-    pat(T, hit){                                        /* 쓰다듬기: 늘 HO1이 HO2 머리를 토닥토닥 (3번) */
-      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1;
+    pat(T, hit, me){                                    /* 쓰다듬기: 누른 캐릭터가 쓰다듬음 */
+      if (me && me.patter === bun2) { ACT_RUN.patUp(T, hit); return; }
+      const A = bun, B = bun2, amp = reduced() ? 0.5 : 1;   /* 류스케 → 아키사: 머리를 토닥토닥 (3번) */
       const top = B2.head.getWorldPosition(new V3()).add(new V3(0, 0.5, 0)).addScaledVector(frontOf(B), 0.05);
       const reach = kk(0.1, 0.575, T), back = kk(2.3, 2.7, T);
       const yo = T < 0.575 || T > 2.225 ? 0.1 : 0.1 * Math.abs(Math.cos(Math.PI * (T - 0.575) / 0.55));   /* 0.85·1.4·1.95초에 닿음 */
@@ -1971,6 +1974,24 @@ function boot(){
       if (hit(0.9)) say('ho1', '토닥토닥~', 'ok', 1.5);
       if (hit(2.0)) say('ho2', '…감사합니다.', '', 1.6);
       if (hit(2.3)) spawnHearts(1, 'ho2');
+    },
+    patUp(T, hit){                                      /* 아키사 → 류스케: 발끝 들듯 몸을 올려 손을 뻗어 쓰다듬음 */
+      const A = bun2, B = bun, amp = reduced() ? 0.5 : 1;
+      const top = B1.head.getWorldPosition(new V3()).add(new V3(0, 0.5 * HO1_K, 0)).addScaledVector(frontOf(B), 0.05);
+      const reach = kk(0.1, 0.6, T), back = kk(2.3, 2.7, T), up = reach * (1 - back);
+      const rub = T > 0.6 && T < 2.3 ? Math.sin((T - 0.6) * 9) * 0.06 : 0;   /* 쓱쓱 (좌우로) */
+      const p = via(via(restW(A, 1), top.clone().addScaledVector(sideOf(B), rub).add(new V3(0, 0.04, 0)), reach), restW(A, 1), back);
+      if (T < 2.85) setHands(A, p, null);
+      A.pose = { lx: 0.1 * up, dy: 0.07 * up * amp };   /* 발끝을 살짝 든 것처럼 몸이 올라감 */
+      /* 류스케: 흠칫 굳었다가(떨림) 살짝 뒤로 기울어짐 + 볼이 더 빨개짐 */
+      const lean = kk(1.0, 1.4, T) * (1 - kk(2.4, 2.8, T));
+      B.pose = { lx: -0.1 * lean * amp };
+      B.flush = Math.max(B.flush || 0, 0.85 * kk(0.7, 1.1, T) * (1 - kk(2.6, 3.0, T)));
+      if (hit(0.65)) { fxOf(B).shiver = reduced() ? 0.2 : 0.35; B.squash.v += 1.2 * amp; }
+      [0.9, 1.45, 2.0].forEach(x => { if (hit(x)) Bus.audio.tap(); });
+      if (hit(0.75)) say('ho2', PAT_TEXT.fluffy, '', 1.15);    /* 아키사: "푹신푹신" (1.15초) → 끝난 뒤 류스케 */
+      if (hit(1.95)) { hush('ho2'); say('ho1', PAT_TEXT.ryu, 'ok', 1.6); }
+      if (hit(2.3)) spawnHearts(1);
     },
     hold(T, hit, me){                                   /* 손잡기: 나란히 서서 잡은 손을 살랑살랑 */
       const A = bun, B = bun2, amp = reduced() ? 0.5 : 1, f = frontOf(A);
@@ -2066,7 +2087,8 @@ function boot(){
     '.act-btn:hover,.act-btn:focus-visible{outline:3px solid #5565AA;outline-offset:2px}' +
     '.act-btn:active{box-shadow:0 1px 0 #1F1B24;margin-top:-28px}' +
     '.act-btn .ai{font:22px/1 "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}' +
-    '.act-btn .al{font:800 10px/1 Nunito,"Gowun Dodum",sans-serif;letter-spacing:-.3px;color:#1F1B24;white-space:nowrap;pointer-events:none}' +
+    '.act-btn .al{font:800 10px/1 Nunito,"Gowun Dodum",sans-serif;letter-spacing:-.3px;color:#1F1B24;white-space:nowrap;pointer-events:none;text-align:center}' +
+    '.act-btn .al small{display:block;margin-top:2px;font:800 9px/1 Nunito,"Gowun Dodum",sans-serif;color:#5565AA}' +
     '@media (prefers-reduced-motion:reduce){.act-btn{transition:none}}' +
     'body.act-open #hotspots{opacity:.15;pointer-events:none;transition:opacity .2s}' +
     'body.layout-edit .act-menu,body:not([data-mode="room"]) .act-menu{display:none}';
@@ -2095,6 +2117,8 @@ function boot(){
     if (act) endAct();
     cookMenu.hidden = true;
     actMenu.dataset.who = who;
+    { const pb = actMenu.querySelector('[data-act="pat"]'), to = who === 'ho2' ? '류스케' : '아키사';
+      pb.setAttribute('aria-label', '쓰다듬기 → ' + to); pb.querySelector('.al').innerHTML = '쓰다듬기<small>→ ' + to + '</small>'; }
     layoutActMenu();
     actMenu.classList.remove('open'); actMenu.hidden = false; placeActMenu(); document.body.classList.add('act-open');
     void actMenu.offsetWidth; actMenu.classList.add('open');
