@@ -2088,7 +2088,6 @@ function boot(){
     '.act-btn:active{box-shadow:0 1px 0 #1F1B24;margin-top:-28px}' +
     '.act-btn .ai{font:22px/1 "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}' +
     '.act-btn .al{font:800 10px/1 Nunito,"Gowun Dodum",sans-serif;letter-spacing:-.3px;color:#1F1B24;white-space:nowrap;pointer-events:none;text-align:center}' +
-    '.act-btn .al small{display:block;margin-top:2px;font:800 9px/1 Nunito,"Gowun Dodum",sans-serif;color:#5565AA}' +
     '@media (prefers-reduced-motion:reduce){.act-btn{transition:none}}' +
     'body.act-open #hotspots{opacity:.15;pointer-events:none;transition:opacity .2s}' +
     'body.layout-edit .act-menu,body:not([data-mode="room"]) .act-menu{display:none}';
@@ -2118,7 +2117,7 @@ function boot(){
     cookMenu.hidden = true;
     actMenu.dataset.who = who;
     { const pb = actMenu.querySelector('[data-act="pat"]'), to = who === 'ho2' ? '류스케' : '아키사';
-      pb.setAttribute('aria-label', '쓰다듬기 → ' + to); pb.querySelector('.al').innerHTML = '쓰다듬기<small>→ ' + to + '</small>'; }
+      pb.setAttribute('aria-label', '쓰다듬기 → ' + to); }   /* 보이는 글자는 다른 버튼처럼 '쓰다듬기'만 (화면 읽기용 이름에만 방향) */
     layoutActMenu();
     actMenu.classList.remove('open'); actMenu.hidden = false; placeActMenu(); document.body.classList.add('act-open');
     void actMenu.offsetWidth; actMenu.classList.add('open');
