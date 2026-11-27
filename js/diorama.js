@@ -1788,7 +1788,7 @@ function boot(){
   const AUTO = { at: 60 + Math.random() * 60 };        /* 이 시각(time)이 지나면 알아서 하나 */
   const autoWait = () => 60 + Math.random() * 60;
   function canInteract(){
-    return Bus.mode === 'room' && !fl.active && !edit.on && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
+    return Bus.mode === 'room' && !fl.active && !edit.on && !lift.on && !lift.fall && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
       && !cook.on && !cook.eat && !water.on;
   }
   /* 두 사람이 설 자리: 가구에 걸리면 방 가운데 쪽으로 조금씩 옮겨 봄 */
@@ -2078,7 +2078,7 @@ function boot(){
   function monoBlocked(){
     return !mono.on || Bus.mode !== 'room' || fl.active || edit.on || sleep.on || sleep.k > 0 || cook.on || cook.eat || act
       || !actMenu.hidden || !cookMenu.hidden || water.on || seat.where === 'bath' || bun.moving || bun2.moving
-      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden;
+      || !bubs.ho1.hidden || !bubs.ho2.hidden || document.hidden || lift.on || lift.fall || lift.pend;
   }
   /* 60Hz */
   function stepMono(h){
@@ -2169,6 +2169,7 @@ function boot(){
     return bd < REACH ? best : null;
   }
   function jumpAction(){
+    if (lift.on || lift.fall) return;
     if (sleep.on) { wakeUp(); return; }
     if (cook.eat) return;
     if (seat.on) { standUp(); return; }
@@ -2416,6 +2417,189 @@ function boot(){
   });
   function kick(id){ if (sections[id]) sections[id].userData.hover.v -= 2.2; else if (id === 'secret') sprout.g.v += 2.5; }
   function showRing(p){ rings.forEach((r, i) => { r.m.position.set(p.x, FLOOR + 0.03, p.z); r.t = 0; r.delay = i * 0.12; r.m.visible = true; }); }
+
+  /* =========================================================
+     캐릭터 들어 올리기 (누구나). 캐릭터를 꾹 누른 채 끌거나(6px 넘게) 0.3초 누르고 있으면 들림.
+     짧게 톡 누르면 지금처럼 상호작용 선택지. 들고 있는 동안은 화면이 안 돌아감.
+     들린 동안: 손가락·마우스를 따라 공중(발밑 1.3)에서 버둥버둥 — 발차기, 동그란 손 허우적, 눈 꽉↔뜸,
+     몸 좌우 흔들 + 끄는 방향에 따라 진자처럼 흔들림, 머리카락 크게. 2~3초마다 들림 대사(명대사 '들렸을 때').
+     놓으면 툭 떨어져 착지(찌그러짐·먼지·소리, 높이 떨어뜨리면 머리 위 별 빙글빙글). 가구·벽은 resolve로 비켜 남.
+     침대 위에 놓으면 그대로 잠, 소파 위면 앉기. 다른 한 명은 아래서 올려다보며 졸졸 + 가끔 폴짝
+     ========================================================= */
+  const LIFT_H = 1.3, GRAB_Y = 0.95;                    /* 들린 높이(발밑), 잡는 자리(머리 아래쯤, 발에서) */
+  const lift = { on: false, fall: false, pend: null, s: null, P: null, who: null, pid: null, x: 0, z: 0, tx: 0, tz: 0, y: 0, vy: 0, k: 0,
+    sw: { x: { x: 0, v: 0 }, z: { x: 0, v: 0 } }, talkT: 0, last: null, hopT: 0, followT: 0, dropY: 0, land: null, onBed: false, onSofa: false };
+  const liftPlane = new THREE.Plane(new V3(0, 1, 0), 0);
+  const BED_OBS = OBST.filter(o => o.x === BED.x && Math.abs(Math.abs(o.z - BED.z) - 0.55) < 1e-6);     /* 가구를 옮기면 같이 바뀌는 객체 그대로 */
+  const SOFA_OBS = OBST.filter(o => o.x === SOFA.x && Math.abs(Math.abs(o.z - SOFA.z) - 0.55) < 1e-6);
+  const _lq = new THREE.Quaternion(), _lo = new V3();
+  const liftOf = s => (lift.on || lift.fall) && lift.s === s;   /* 이 캐릭터가 들렸거나 떨어지는 중 */
+  function canLift(){
+    return Bus.mode === 'room' && !fl.active && !edit.on && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
+      && !cook.on && !cook.eat && !act && !water.on && !lift.on && !lift.fall;
+  }
+  /* 어지러운 별 3개 (높이 떨어뜨렸을 때 머리 위에서 빙글빙글) */
+  const dizzy = { t: 0, s: null, P: null, stars: [] };
+  for (let i = 0; i < 3; i++) {
+    const m = new THREE.Mesh(starGeo, mat(0xFFE27A, { emissive: 0xFFE27A, emissiveIntensity: 0.45 }));
+    m.scale.setScalar(0.2); m.visible = false; m.castShadow = false; scene.add(m); dizzy.stars.push(m);
+  }
+  /* 누르기: 캐릭터 위에서 누르면 화면 회전보다 먼저 받아 둠 (들지 톡인지는 움직임·시간으로 정함) */
+  canvas.addEventListener('pointerdown', e => {
+    if (!canLift() || !actMenu.hidden || (e.button != null && e.button !== 0)) return;
+    const h = pick(e.clientX, e.clientY);
+    if (!h || (h.type !== 'bunny' && h.type !== 'buddy')) return;
+    e.stopImmediatePropagation();                       /* OrbitControls가 회전을 시작하지 않게 */
+    down = { x: e.clientX, y: e.clientY, t: performance.now(), menu: false };   /* 톡이면 아래 원래 pointerup이 선택지를 엶 */
+    lift.pend = { who: h.type === 'bunny' ? 'ho1' : 'ho2', x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY, t: performance.now(), pid: e.pointerId };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  }, { capture: true });
+  window.addEventListener('pointermove', e => {
+    const pd = lift.pend;
+    if (pd && e.pointerId === pd.pid) { pd.cx = e.clientX; pd.cy = e.clientY; if (Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 6) startLift(); }
+    if (lift.on && e.pointerId === lift.pid) aimLift(e.clientX, e.clientY);
+  });
+  canvas.addEventListener('pointerup', e => {
+    if (lift.pend && e.pointerId === lift.pend.pid) { lift.pend = null; return; }
+    if (lift.on && e.pointerId === lift.pid) { e.stopImmediatePropagation(); down = null; dropLift(); }
+  }, { capture: true });
+  window.addEventListener('pointerup', e => {
+    if (lift.on && e.pointerId === lift.pid) { down = null; dropLift(); }
+    if (lift.pend && e.pointerId === lift.pend.pid) lift.pend = null;
+  });
+  canvas.addEventListener('pointercancel', () => { lift.pend = null; if (lift.on) dropLift(); });
+  window.addEventListener('blur', () => { lift.pend = null; if (lift.on) dropLift(); });
+
+  function startLift(){
+    const pd = lift.pend; lift.pend = null;
+    if (!pd || !canLift()) return;
+    const s = pd.who === 'ho2' ? bun2 : bun;
+    Object.assign(lift, { on: true, fall: false, s, P: s === bun ? B1 : B2, who: pd.who, pid: pd.pid, x: s.pos.x, z: s.pos.z, tx: s.pos.x, tz: s.pos.z,
+      y: 0, vy: 0, k: 0, talkT: 0.15, hopT: 0.7, followT: 0 });
+    lift.sw.x.x = lift.sw.x.v = lift.sw.z.x = lift.sw.z.v = 0;
+    down = null; controls.enabled = false; closeActMenu(); cookMenu.hidden = true; keys.clear();
+    if (s === bun) { bun.moving = false; bun.target = null; bun.onArrive = null; }
+    else { budTarget = null; bun2.moving = false; bun2.hopDelay = 0; }
+    s.jumpY = 0; s.jumpV = 0; s.gait = 0; s.expr = null;
+    lift.ox = lift.oz = 0; aimLift(pd.cx, pd.cy);
+    lift.ox = s.pos.x - lift.tx; lift.oz = s.pos.z - lift.tz;   /* 잡은 자리 그대로: 처음에 홱 움직이지 않게 */
+    lift.tx = s.pos.x; lift.tz = s.pos.z;
+    Bus.audio.hop();
+    canvas.style.cursor = 'grabbing';
+  }
+  /* 손가락 자리 → 들린 높이의 수평면 위 한 점 (방 밖으로 못 나감) */
+  function aimLift(cx, cy){
+    ndc.set(cx / window.innerWidth * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    liftPlane.constant = -(FLOOR + LIFT_H + GRAB_Y * lift.P.bunny.scale.y);
+    const p = ray.ray.intersectPlane(liftPlane, new V3()); if (!p) return;
+    const B = BOUND - 0.3; lift.tx = clamp(p.x + (lift.ox || 0), -B, B); lift.tz = clamp(p.z + (lift.oz || 0), -B, B);
+  }
+  function dropLift(){
+    if (!lift.on) return;
+    const s = lift.s;
+    lift.on = false; lift.fall = true; lift.dropY = lift.y; lift.vy = 0;
+    controls.enabled = !fl.active; canvas.style.cursor = '';
+    s.hreq = null; s.shut = false;
+    const at = new V3(lift.x, 0, lift.z), near = os => os.some(o => o && Math.hypot(at.x - o.x, at.z - o.z) < o.r + 0.05);
+    lift.onBed = near(BED_OBS); lift.onSofa = !lift.onBed && near(SOFA_OBS);
+    lift.land = resolve(at.clone());
+  }
+  function land(){
+    const s = lift.s, hgt = lift.dropY, amp = reduced() ? 0.5 : 1;
+    lift.fall = false; lift.y = 0;
+    s.pos.set(lift.land.x, 0, lift.land.z);
+    s.squash.v += (5 + hgt * 2.5) * amp;                /* 찌그러졌다 펴짐 */
+    for (let i = 0; i < 6; i++) {                       /* 먼지 퐁 */
+      const p = puffs[puffIdx++ % puffs.length], a = i / 6 * Math.PI * 2;
+      p.m.position.set(s.pos.x + Math.cos(a) * 0.32, FLOOR + 0.06, s.pos.z + Math.sin(a) * 0.32);
+      p.life = 0; p.alive = true; p.m.visible = true;
+    }
+    Bus.audio.bonk(); setTimeout(() => Bus.audio.tap(), 90);
+    if (hgt > 1.0) { dizzy.t = reduced() ? 1.0 : 2.0; dizzy.s = s; dizzy.P = lift.P; }
+    [bun, bun2].forEach(x => { x.pose = null; x.shut = false; x.hreq = null; });
+    bun2.hopDelay = 0; bun.idle = 0; bun2.idle = 0; bun.lock = 0;
+    if (s === bun) { bun.target = null; bun.moving = false; }
+    lift.s = null; lift.sw.x.x = lift.sw.z.x = 0;
+    if (lift.onBed) { sleep.on = true; Bus.audio.hop(); }                         /* 침대 위 = 그대로 잠 */
+    else if (lift.onSofa) { seat.where = 'sofa'; seat.on = true; Bus.audio.hop(); }   /* 소파 위 = 앉기 */
+  }
+  /* 들림 대사: 들림 전용 → 없으면 그 캐릭터 평소 명대사 → 하나도 없으면 짧은 기호. 같은 것 연달아 X. 💬 꺼 두면 안 뜸 */
+  function liftSay(){
+    if (!mono.on) return;
+    const who = lift.who, Q = window.PUBAM_QUOTES, list = Q && Q.liftLines ? Q.liftLines(who) : [];
+    let text;
+    if (list.length) {
+      const pool = list.length > 1 ? list.filter(q => q.id !== lift.last) : list, q = pool[Math.floor(Math.random() * pool.length)];
+      lift.last = q.id; text = q.line;
+    } else {
+      const sy = ['!!', '!?', '…!!'].filter(x => x !== lift.last); text = sy[Math.floor(Math.random() * sy.length)]; lift.last = text;
+    }
+    say(who, text, who === 'ho1' ? 'ok' : '', 1.9);
+  }
+  /* 60Hz */
+  function stepLift(h){
+    if (lift.pend && performance.now() - lift.pend.t > 300) startLift();   /* 0.3초 꾹 = 들기 */
+    const amp = reduced() ? 0.4 : 1;
+    if (lift.on) {
+      if (Bus.mode !== 'room' || edit.on || fl.active) { dropLift(); return; }
+      const s = lift.s, o = s === bun ? bun2 : bun, f = 1 - Math.exp(-h * 14), px = lift.x, pz = lift.z;
+      lift.x += (lift.tx - lift.x) * f; lift.z += (lift.tz - lift.z) * f;
+      const vx = (lift.x - px) / h, vz = (lift.z - pz) / h;
+      lift.k = Math.min(1, lift.k + h / 0.25); lift.y = LIFT_H * ease(lift.k);
+      s.pos.set(lift.x, 0, lift.z);
+      /* 관성: 끄는 쪽으로 머리가 끌려가고 발은 뒤로 처짐 → 멈추면 진자처럼 흔들 */
+      spring(lift.sw.x, clamp(vx * 0.09, -0.55, 0.55) * amp, 42, 3.0, h);
+      spring(lift.sw.z, clamp(vz * 0.09, -0.55, 0.55) * amp, 42, 3.0, h);
+      s.faceTarget = Math.atan2(camera.position.x - s.pos.x, camera.position.z - s.pos.z); s.lock = 1;   /* 버둥거리는 얼굴이 보이게 화면 쪽 */
+      if (s === bun2) { bun2.face += wrapA(bun2.faceTarget - bun2.face) * Math.min(1, h * 9); spring(bun2.squash, 0, 190, 11, h); spring(bun2.ear, 0, 95, 6.5, h); }
+      const t = time;
+      s.hreq = { 0: new V3(0.34, 0.55 + 0.17 * amp * Math.sin(t * 15), 0.14), 1: new V3(-0.34, 0.55 + 0.17 * amp * Math.sin(t * 15 + Math.PI), 0.14), w: false, until: time + 0.15 };
+      s.shut = Math.sin(t * 6.5) > 0.1;                 /* 눈 꽉 ↔ 뜸 */
+      lift.talkT -= h; if (lift.talkT <= 0) { liftSay(); lift.talkT = 2 + Math.random(); }
+      /* 다른 한 명: 올려다보며 아래서 졸졸, 가끔 폴짝 */
+      o.pose = { lx: -0.16 * amp };
+      lift.hopT -= h;
+      if (o === bun2) {
+        bun2.faceTarget = Math.atan2(lift.x - bun2.pos.x, lift.z - bun2.pos.z) || bun2.faceTarget; bun2.idle = 0;
+        if (lift.hopT <= 0) { hopBud(3.4); lift.hopT = 1.2 + Math.random() * 1.8; }
+      } else {
+        lift.followT -= h;
+        const d = Math.hypot(lift.x - bun.pos.x, lift.z - bun.pos.z);
+        if (lift.followT <= 0 && d > 0.9) { walkTo(lift.x, lift.z); lift.followT = 0.5; }
+        if (!bun.moving) bun.faceTarget = Math.atan2(lift.x - bun.pos.x, lift.z - bun.pos.z);
+        bun.lock = 0.5;
+        if (lift.hopT <= 0 && !bun.moving) { bun.jumpV = reduced() ? 2 : 3.4; bun.squash.v -= 3; lift.hopT = 1.2 + Math.random() * 1.8; }
+      }
+    } else if (lift.fall) {
+      const s = lift.s;
+      lift.vy -= 16 * h; lift.y += lift.vy * h;
+      lift.x += (lift.land.x - lift.x) * Math.min(1, h * 10); lift.z += (lift.land.z - lift.z) * Math.min(1, h * 10);
+      s.pos.set(lift.x, 0, lift.z);
+      spring(lift.sw.x, 0, 90, 9, h); spring(lift.sw.z, 0, 90, 9, h);
+      if (s === bun2) { spring(bun2.squash, 0, 190, 11, h); }
+      if (lift.y <= 0) land();
+    }
+    /* 어지러운 별 */
+    if (dizzy.t > 0) {
+      dizzy.t -= h;
+      const c = dizzy.P.head.getWorldPosition(new V3()), k = dizzy.P.bunny.scale.y;
+      dizzy.stars.forEach((m, i) => {
+        const a = time * 5 + i * Math.PI * 2 / 3;
+        m.visible = dizzy.t > 0; m.position.set(c.x + Math.cos(a) * 0.36 * k, c.y + 0.6 * k + Math.sin(time * 8 + i) * 0.03, c.z + Math.sin(a) * 0.36 * k);
+        m.rotation.set(0, -a, Math.sin(time * 6 + i) * 0.4);
+      });
+    }
+  }
+  /* 들린 캐릭터 모양 (poseBunny에서 부름): 잡은 자리(머리 아래)를 중심으로 기울임 */
+  function poseLifted(P, s, still){
+    const k = P.bunny.scale.y, f = s.face, sx = lift.sw.x.x, sz = lift.sw.z.x;
+    const lx = sx * Math.cos(f) - sz * Math.sin(f), lz = sx * Math.sin(f) + sz * Math.cos(f);   /* 세계 → 몸 기준 */
+    const wig = still || !lift.on ? 0 : Math.sin(time * 13) * 0.08 * (reduced() ? 0.4 : 1);   /* 좌우 버둥 */
+    P.bunny.rotation.set(lz, f, -lx + wig);
+    _lq.setFromEuler(P.bunny.rotation); _lo.set(0, GRAB_Y * k, 0).applyQuaternion(_lq);
+    P.bunny.position.set(lift.x, FLOOR + 0.02 + lift.y + GRAB_Y * k, lift.z).sub(_lo);
+  }
 
   /* keyboard steering */
   const keys = new Set();
@@ -2762,7 +2946,7 @@ function boot(){
   }
 
   function step(h, t){
-    const asleep = sleep.on || sleep.k > 0 || seat.on || seat.k > 0 || water.on;   /* 자거나 앉아 있거나 물 주는 중엔 안 걸음 */
+    const asleep = sleep.on || sleep.k > 0 || seat.on || seat.k > 0 || water.on || liftOf(bun);   /* 자거나 앉아 있거나 물 주는 중·들린 동안엔 안 걸음 */
     seat.k = clamp(seat.k + (seat.on ? h : -h) / 0.6, 0, 1);
     if (seat.k === 0 && !seat.on) seat.where = seat.where && null;
     sleep.k = clamp(sleep.k + (sleep.on ? h : -h) / 0.8, 0, 1);
@@ -2825,12 +3009,13 @@ function boot(){
     }
     spring(bun.squash, 0, 190, 11, h);
     spring(bun.ear, -0.38 * bun.gait + clamp(-bun.jumpV * 0.09, -0.5, 0.5), 95, 6.5, h);
-    if (!(sleep.on || sleep.k > 0 || seat.on || seat.k > 0)) stepBud(h);
+    if (!(sleep.on || sleep.k > 0 || seat.on || seat.k > 0) && !liftOf(bun2)) stepBud(h);
     spring(fridgeDoor, fridgeDoor.target, 60, 9, h);
     stepWater(h);
     stepBath(h);
     stepAct(h);
     stepMono(h);
+    stepLift(h);
     Object.values(sections).forEach(g => { const hv = g.userData.hover; spring(hv, hv.target, 170, 12, h); });
     drawers.forEach(d => spring(d.out, d.target, 230, 15, h));
     spring(sprout.g, sprout.target, 110, 8, h);
@@ -3092,6 +3277,8 @@ function boot(){
     actMenu: who => openActMenu(who || 'ho1'),
     get mono(){ return { on: mono.on, at: +(mono.at - time).toFixed(1), show: mono.show ? mono.show.who + ':' + mono.show.chars.join('') : null }; },
     monoSoon(){ mono.at = time + 0.5; },
+    screenOf: who => toScreen((who === 'ho2' ? B2 : B1).head.getWorldPosition(new V3())),
+    get liftState(){ return { on: lift.on, fall: lift.fall, pend: !!lift.pend, who: lift.who, y: +lift.y.toFixed(2), x: +lift.x.toFixed(2), z: +lift.z.toFixed(2), dizzy: dizzy.t > 0 }; },
     sleep: goSleep, wake: wakeUp,
     get actState(){ return act ? { kind: act.kind, go: +act.go.toFixed(2), auto: act.auto } : null; },
     autoSoon(){ AUTO.at = time + 1; },
@@ -3130,8 +3317,9 @@ function boot(){
   const backOut = t => { const a = t - 1; return 1 + 2.7 * a * a * a + 1.7 * a * a; };   /* 퐁: 살짝 넘쳤다 돌아옴 */
   function poseBunny(P, s, dt, still){
     let eatHand = null;
-    const se = ease(sleep.k), sk = seat.where ? ease(seat.k) : 0;
-    if (se > 0 && s.bedSlot) {
+    const se = ease(sleep.k), sk = seat.where ? ease(seat.k) : 0, lifted = liftOf(s);
+    if (lifted) poseLifted(P, s, still);                /* 들어 올려짐 */
+    else if (se > 0 && s.bedSlot) {
       /* 침대로 폴짝 올라가 등을 대고 누움 (머리는 헤드보드 쪽) */
       const arc = Math.sin(Math.PI * se) * 0.7;
       P.bunny.position.set(mix(s.pos.x, s.bedSlot.x, se), mix(FLOOR + 0.02, s.bedSlot.y, se) + arc, mix(s.pos.z, s.bedSlot.z, se));
@@ -3164,8 +3352,13 @@ function boot(){
       const lift = s.gait * Math.max(0, i ? -wave : wave) * 0.11;
       f.position.y = 0.06 + lift + s.jumpY * 0.9 + 0.08 * sk;
       f.position.z = 0.1 + (still ? 0 : Math.max(0, i ? -wave : wave) * 0.08 * s.gait) + 0.2 * sk;   /* 앉으면 발을 앞으로 */
+      if (lifted && lift.on && !still) {                /* 들린 동안 발을 번갈아 빠르게 참 */
+        const kick = Math.sin(time * 17 + i * Math.PI) * (reduced() ? 0.4 : 1);
+        f.position.y = 0.06 + Math.max(0, kick) * 0.1; f.position.z = 0.1 + kick * 0.1;
+      }
     });
     P.ears.forEach(e => { e.rotation.x = s.ear.x * (P.sway == null ? 1 : P.sway); e.rotation.z = -e.userData.side * (0.08 + (still ? 0 : Math.sin(time * 1.7 + e.userData.side + (s.breathSeed || 0)) * 0.05)); });
+    if (lifted && lift.on && !still) P.ears.forEach(e => { const a = reduced() ? 0.4 : 1; e.rotation.z += Math.sin(time * 16) * 0.2 * a; e.rotation.x += Math.sin(time * 11 + 1) * 0.14 * a; });   /* 들린 동안 머리카락 크게 */
     s.blinkT -= dt;
     const blinking = s.blinkT < 0.16;
     P.eyes.forEach(e => { e.scale.y = blinking || se > 0.8 || s.shut ? 0.12 : 1; });   /* 자는 동안·s.shut이면 눈 감음 */
@@ -3229,6 +3422,7 @@ function boot(){
     P.shadow.position.set(P.bunny.position.x, FLOOR + 0.035, P.bunny.position.z);
     const ss = (1 - Math.min(s.jumpY, 1.2) * 0.4) * P.bunny.scale.x; P.shadow.scale.set(ss, ss, ss);
     P.shadow.material.opacity = ss / P.bunny.scale.x * (1 - se) * (1 - 0.6 * sk);
+    if (lifted) { const q = 1 - Math.min(lift.y, 2) * 0.3; P.shadow.position.set(lift.x, FLOOR + 0.035, lift.z); P.shadow.scale.setScalar(q * P.bunny.scale.x); P.shadow.material.opacity = q * q; }
   }
 
   let perfN = 0, perfSum = 0, perfStage = 0;
