@@ -183,6 +183,12 @@ https://www.tooplate.com/view/2171-spatial-diorama
       var t = this.noise('lowpass', 700, 0.45, 0.35, 0.08);
       this.bell(1318.51, t + 0.12, 0.05, 0.5); this.bell(1975.53, t + 0.22, 0.04, 0.5);
     },
+    /* 어질어질: 높은 음에서 흔들리며 내려가는 종소리 */
+    woozy: function(){
+      if (!this.live()) return;
+      var t = this.ctx.currentTime + 0.01, self = this;
+      [1760, 1567.98, 1318.51, 1174.66, 987.77].forEach(function(f, i){ self.bell(f * (i % 2 ? 0.985 : 1), t + i * 0.1, 0.07, 0.35); });
+    },
     /* 콩: 이마 콩 (나무 블록처럼 짧고 둥근 소리) */
     bonk: function(){
       if (!this.live()) return;

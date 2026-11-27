@@ -1093,7 +1093,14 @@ function boot(){
     /* 손에 든 쿠키 (입 앞, 한 입씩 작아짐). 쥐는 손은 아래 동그란 손(hands[0])이 따라옴 */
     const snack = new THREE.Group(); snack.position.set(0.1, HY - 0.36, HR * 0.95); tilt.add(snack); snack.visible = false;
     const snackC = put(cyl(0.075, 0.075, 0.025, COL.white, { roughness: 0.85 }, 18), 0, 0.03, 0, snack); snackC.rotation.x = Math.PI / 2 - 0.35;
-    const faceFx = { happyEyes, yuckEyes, smile, frown, sweat, snack, snackC };
+    /* 어지러울 때 빙글빙글 눈 (@ 모양: 끊긴 고리 둘이 돌아감) */
+    const dizzyEyes = [-1, 1].map(s => {
+      const g = onFace(s * 0.33, ey0 - 0.02), sp = new THREE.Group(); g.add(sp); g.userData.sp = sp; g.userData.dir = s;
+      sp.add(new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.013, 8, 24, Math.PI * 1.55), ink));
+      const inner = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.012, 8, 18, Math.PI * 1.4), ink); inner.rotation.z = Math.PI; sp.add(inner);
+      return g;
+    });
+    const faceFx = { happyEyes, yuckEyes, dizzyEyes, smile, frown, sweat, snack, snackC };
 
     /* 발: 흰 타원 + 외곽선 */
     const feet = [-1, 1].map(s => {
@@ -2732,6 +2739,8 @@ function boot(){
     return Bus.mode === 'room' && !fl.active && !edit.on && !sleep.on && sleep.k === 0 && !seat.on && seat.k === 0
       && !cook.on && !cook.eat && !act && !water.on && !lift.on && !lift.fall && !egg.on && egg.k === 0 && !beer;
   }
+  const wobble = { s: null, t: 0 };                   /* 착지 뒤 비틀거리는 캐릭터 */
+  function endWobble(){ const s = wobble.s; if (!s) return; wobble.s = null; fxOf(s).sway = 0; s.pose = null; if (s.expr === 'dizzy') s.expr = null; }
   /* 어지러운 별 3개 (높이 떨어뜨렸을 때 머리 위에서 빙글빙글) */
   const dizzy = { t: 0, s: null, P: null, stars: [] };
   for (let i = 0; i < 3; i++) {
@@ -2769,7 +2778,8 @@ function boot(){
     if (!pd || !canLift()) return;
     const s = pd.who === 'ho2' ? bun2 : bun;
     Object.assign(lift, { on: true, fall: false, s, P: s === bun ? B1 : B2, who: pd.who, pid: pd.pid, x: s.pos.x, z: s.pos.z, tx: s.pos.x, tz: s.pos.z,
-      y: 0, vy: 0, k: 0, talkT: 0.15, hopT: 0.7, followT: 0 });
+      y: 0, vy: 0, k: 0, talkT: 0.15, hopT: 0.7, followT: 0, dz: 0, woozy: false, pa: null });
+    if (wobble.s === s) endWobble();
     lift.sw.x.x = lift.sw.x.v = lift.sw.z.x = lift.sw.z.v = 0;
     down = null; controls.enabled = false; closeActMenu(); cookMenu.hidden = true; keys.clear();
     if (s === bun) { bun.moving = false; bun.target = null; bun.onArrive = null; }
@@ -2795,6 +2805,7 @@ function boot(){
     lift.on = false; lift.fall = true; lift.dropY = lift.y; lift.vy = 0;
     controls.enabled = !fl.active; canvas.style.cursor = '';
     s.hreq = null; s.shut = false;
+    lift.wasWoozy = lift.woozy; lift.woozy = false;
     const at = new V3(lift.x, 0, lift.z), near = os => os.some(o => o && Math.hypot(at.x - o.x, at.z - o.z) < o.r + 0.05);
     lift.onBed = near(BED_OBS); lift.onSofa = !lift.onBed && near(SOFA_OBS);
     lift.land = resolve(at.clone());
@@ -2811,6 +2822,10 @@ function boot(){
     }
     Bus.audio.bonk(); setTimeout(() => Bus.audio.tap(), 90);
     if (hgt > 1.0) { dizzy.t = reduced() ? 1.0 : 2.0; dizzy.s = s; dizzy.P = lift.P; }
+    if (lift.wasWoozy && !lift.onBed && !lift.onSofa) {   /* 어지러운 채로 내려오면: 별 + @_@ 눈으로 비틀비틀 */
+      lift.wasWoozy = false; dizzy.t = Math.max(dizzy.t, reduced() ? 1.4 : 2.8); dizzy.s = s; dizzy.P = lift.P;
+      wobble.s = s; wobble.t = reduced() ? 1.4 : 2.8; s.expr = 'dizzy';
+    } else { lift.wasWoozy = false; if (s.expr === 'dizzy') s.expr = null; }
     [bun, bun2].forEach(x => { x.pose = null; x.shut = false; x.hreq = null; });
     bun2.hopDelay = 0; bun.idle = 0; bun2.idle = 0; bun.lock = 0;
     if (s === bun) { bun.target = null; bun.moving = false; }
@@ -2846,11 +2861,26 @@ function boot(){
       spring(lift.sw.x, clamp(vx * 0.09, -0.55, 0.55) * amp, 42, 3.0, h);
       spring(lift.sw.z, clamp(vz * 0.09, -0.55, 0.55) * amp, 42, 3.0, h);
       s.faceTarget = Math.atan2(camera.position.x - s.pos.x, camera.position.z - s.pos.z); s.lock = 1;   /* 버둥거리는 얼굴이 보이게 화면 쪽 */
+      /* 어지러움 게이지: 빠르게 + 방향을 자꾸 바꾸면(좌우 흔들기·빙글빙글 돌리기) 쌓이고, 천천히 들고 있으면 줄어듦 */
+      { const v = Math.hypot(vx, vz); let turn = 0;
+        if (v > 0.6) { const ang = Math.atan2(vz, vx); if (lift.pa != null) turn = Math.min(1, Math.abs(wrapA(ang - lift.pa)) / h / 7); lift.pa = ang; }
+        const gain = Math.max(0, v - 1.8) * (0.08 + 0.34 * turn);
+        lift.dz = clamp(lift.dz + (gain > 0 ? gain : -0.3) * h, 0, 1.4); }
+      if (!lift.woozy && lift.dz >= 1) {                /* 어질어질 시작 */
+        lift.woozy = true; s.expr = 'dizzy'; s.shut = false; Bus.audio.woozy && Bus.audio.woozy();
+        say(lift.who, '@_@', lift.who === 'ho1' ? 'ok' : '', 1.6); lift.talkT = 2.2;
+      } else if (lift.woozy && lift.dz < 0.3) { lift.woozy = false; s.expr = null; }   /* 가만히 들고 있으면 정신 차림 */
+      if (lift.woozy) { dizzy.t = Math.max(dizzy.t, 0.25); dizzy.s = s; dizzy.P = lift.P; }   /* 머리 위 별 빙글빙글 */
       if (s === bun2) { bun2.face += wrapA(bun2.faceTarget - bun2.face) * Math.min(1, h * 9); spring(bun2.squash, 0, 190, 11, h); spring(bun2.ear, 0, 95, 6.5, h); }
       const t = time;
-      s.hreq = { 0: new V3(0.34, 0.55 + 0.17 * amp * Math.sin(t * 15), 0.14), 1: new V3(-0.34, 0.55 + 0.17 * amp * Math.sin(t * 15 + Math.PI), 0.14), w: false, until: time + 0.15 };
-      s.shut = Math.sin(t * 6.5) > 0.1;                 /* 눈 꽉 ↔ 뜸 */
-      lift.talkT -= h; if (lift.talkT <= 0) { liftSay(); lift.talkT = 2 + Math.random(); }
+      if (lift.woozy) {                                 /* 어지러우면 손도 축 처져서 흔들흔들 */
+        s.hreq = { 0: new V3(0.33, 0.3 + 0.04 * Math.sin(t * 2.6), 0.1), 1: new V3(-0.33, 0.3 + 0.04 * Math.sin(t * 2.6 + 1), 0.1), w: false, until: time + 0.15 };
+        s.shut = false;
+      } else {
+        s.hreq = { 0: new V3(0.34, 0.55 + 0.17 * amp * Math.sin(t * 15), 0.14), 1: new V3(-0.34, 0.55 + 0.17 * amp * Math.sin(t * 15 + Math.PI), 0.14), w: false, until: time + 0.15 };
+        s.shut = Math.sin(t * 6.5) > 0.1;               /* 눈 꽉 ↔ 뜸 */
+        lift.talkT -= h; if (lift.talkT <= 0) { liftSay(); lift.talkT = 2 + Math.random(); }
+      }
       /* 다른 한 명: 올려다보며 아래서 졸졸, 가끔 폴짝 */
       o.pose = { lx: -0.16 * amp };
       lift.hopT -= h;
@@ -2874,6 +2904,14 @@ function boot(){
       if (s === bun2) { spring(bun2.squash, 0, 190, 11, h); }
       if (lift.y <= 0) land();
     }
+    /* 착지 뒤 비틀비틀: 몸이 좌우로 크게 기우뚱 (점점 잦아듦) */
+    if (wobble.s) {
+      const w = wobble, k = Math.min(1, w.t / 1.2), a = reduced() ? 0.4 : 1;
+      w.t -= h;
+      fxOf(w.s).sway = Math.sin(time * 4.2) * 0.2 * a * k;
+      w.s.pose = { lx: Math.cos(time * 4.2) * 0.07 * a * k };
+      if (w.t <= 0 || sleep.on || seat.on || lift.on || act || beer || cook.on || cook.eat) endWobble();
+    }
     /* 어지러운 별 */
     if (dizzy.t > 0) {
       dizzy.t -= h;
@@ -2889,8 +2927,10 @@ function boot(){
   function poseLifted(P, s, still){
     const k = P.bunny.scale.y, f = s.face, sx = lift.sw.x.x, sz = lift.sw.z.x;
     const lx = sx * Math.cos(f) - sz * Math.sin(f), lz = sx * Math.sin(f) + sz * Math.cos(f);   /* 세계 → 몸 기준 */
-    const wig = still || !lift.on ? 0 : Math.sin(time * 13) * 0.08 * (reduced() ? 0.4 : 1);   /* 좌우 버둥 */
-    P.bunny.rotation.set(lz, f, -lx + wig);
+    const wa = reduced() ? 0.4 : 1, wz = !still && lift.on && lift.woozy;
+    const wig = still || !lift.on || wz ? 0 : Math.sin(time * 13) * 0.08 * wa;   /* 좌우 버둥 */
+    const rx = wz ? Math.cos(time * 3.2) * 0.13 * wa : 0, rz = wz ? Math.sin(time * 3.2) * 0.13 * wa : 0;   /* 어지러움: 빙~빙 */
+    P.bunny.rotation.set(lz + rx, f, -lx + wig + rz);
     _lq.setFromEuler(P.bunny.rotation); _lo.set(0, GRAB_Y * k, 0).applyQuaternion(_lq);
     P.bunny.position.set(lift.x, FLOOR + 0.02 + lift.y + GRAB_Y * k, lift.z).sub(_lo);
   }
@@ -3578,7 +3618,7 @@ function boot(){
     get mono(){ return { on: mono.on, at: +(mono.at - time).toFixed(1), show: mono.show ? mono.show.who + ':' + mono.show.chars.join('') : null }; },
     monoSoon(){ mono.at = time + 0.5; },
     screenOf: who => toScreen((who === 'ho2' ? B2 : B1).head.getWorldPosition(new V3())),
-    get liftState(){ return { on: lift.on, fall: lift.fall, pend: !!lift.pend, who: lift.who, y: +lift.y.toFixed(2), x: +lift.x.toFixed(2), z: +lift.z.toFixed(2), dizzy: dizzy.t > 0 }; },
+    get liftState(){ return { on: lift.on, fall: lift.fall, pend: !!lift.pend, who: lift.who, dz: +(lift.dz || 0).toFixed(2), woozy: !!lift.woozy, wobble: +wobble.t.toFixed(2), y: +lift.y.toFixed(2), x: +lift.x.toFixed(2), z: +lift.z.toFixed(2), dizzy: dizzy.t > 0 }; },
     sleep: goSleep, wake: wakeUp,
     get actState(){ return act ? { kind: act.kind, go: +act.go.toFixed(2), auto: act.auto } : null; },
     autoSoon(){ AUTO.at = time + 1; },
@@ -3656,13 +3696,15 @@ function boot(){
       const lift = s.gait * Math.max(0, i ? -wave : wave) * 0.11;
       f.position.y = 0.06 + lift + s.jumpY * 0.9 + 0.08 * sk;
       f.position.z = 0.1 + (still ? 0 : Math.max(0, i ? -wave : wave) * 0.08 * s.gait) + 0.2 * sk;   /* 앉으면 발을 앞으로 */
-      if (lifted && lift.on && !still) {                /* 들린 동안 발을 번갈아 빠르게 참 */
+      if (lifted && lift.on && !still && lift.woozy) {  /* 어지러우면 발이 축 늘어져 대롱대롱 */
+        f.position.y = 0.04; f.position.z = 0.08 + Math.sin(time * 2.6 + i * 0.8) * 0.03;
+      } else if (lifted && lift.on && !still) {                /* 들린 동안 발을 번갈아 빠르게 참 */
         const kick = Math.sin(time * 17 + i * Math.PI) * (reduced() ? 0.4 : 1);
         f.position.y = 0.06 + Math.max(0, kick) * 0.1; f.position.z = 0.1 + kick * 0.1;
       }
     });
     P.ears.forEach(e => { e.rotation.x = s.ear.x * (P.sway == null ? 1 : P.sway); e.rotation.z = -e.userData.side * (0.08 + (still ? 0 : Math.sin(time * 1.7 + e.userData.side + (s.breathSeed || 0)) * 0.05)); });
-    if (lifted && lift.on && !still) P.ears.forEach(e => { const a = reduced() ? 0.4 : 1; e.rotation.z += Math.sin(time * 12) * 0.06 * a; e.rotation.x += Math.sin(time * 9 + 1) * 0.04 * a; });   /* 들린 동안 머리카락 살짝 더 흔들림 (너무 크면 어색해서 작게) */
+    if (lifted && lift.on && !still && !lift.woozy) P.ears.forEach(e => { const a = reduced() ? 0.4 : 1; e.rotation.z += Math.sin(time * 12) * 0.06 * a; e.rotation.x += Math.sin(time * 9 + 1) * 0.04 * a; });   /* 들린 동안 머리카락 살짝 더 흔들림 (너무 크면 어색해서 작게) */
     s.blinkT -= dt;
     const blinking = s.blinkT < 0.16;
     P.eyes.forEach(e => { e.scale.y = blinking || se > 0.8 || s.shut ? 0.12 : 1; });   /* 자는 동안·s.shut이면 눈 감음 */
@@ -3674,7 +3716,8 @@ function boot(){
       P.eyes.forEach(e => { e.visible = !ex; });
       F.happyEyes.forEach(g => { g.visible = ex === 'smile'; });
       F.yuckEyes.forEach(g => { g.visible = ex === 'yuck'; });
-      F.smile.visible = ex === 'smile'; F.frown.visible = ex === 'yuck'; F.sweat.visible = ex === 'yuck';
+      F.dizzyEyes.forEach(g => { g.visible = ex === 'dizzy'; if (ex === 'dizzy') g.userData.sp.rotation.z = -time * (reduced() ? 3 : 7) * g.userData.dir; });
+      F.smile.visible = ex === 'smile'; F.frown.visible = ex === 'yuck' || ex === 'dizzy'; F.sweat.visible = ex === 'yuck';
       F.smile.scale.set(1, 1 + chew * 0.5, 1); F.frown.scale.set(1 - chew * 0.2, 1 + chew * 0.6, 1);
       if (ex === 'yuck') F.sweat.position.y = HY + 0.12 - ((time * 0.25) % 0.12);
       const b = s.bite || 0;
