@@ -3358,7 +3358,7 @@ function boot(){
       }
     });
     P.ears.forEach(e => { e.rotation.x = s.ear.x * (P.sway == null ? 1 : P.sway); e.rotation.z = -e.userData.side * (0.08 + (still ? 0 : Math.sin(time * 1.7 + e.userData.side + (s.breathSeed || 0)) * 0.05)); });
-    if (lifted && lift.on && !still) P.ears.forEach(e => { const a = reduced() ? 0.4 : 1; e.rotation.z += Math.sin(time * 16) * 0.2 * a; e.rotation.x += Math.sin(time * 11 + 1) * 0.14 * a; });   /* 들린 동안 머리카락 크게 */
+    if (lifted && lift.on && !still) P.ears.forEach(e => { const a = reduced() ? 0.4 : 1; e.rotation.z += Math.sin(time * 12) * 0.06 * a; e.rotation.x += Math.sin(time * 9 + 1) * 0.04 * a; });   /* 들린 동안 머리카락 살짝 더 흔들림 (너무 크면 어색해서 작게) */
     s.blinkT -= dt;
     const blinking = s.blinkT < 0.16;
     P.eyes.forEach(e => { e.scale.y = blinking || se > 0.8 || s.shut ? 0.12 : 1; });   /* 자는 동안·s.shut이면 눈 감음 */
